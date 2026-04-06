@@ -1,0 +1,12 @@
+{
+  "project": "vault-mind",
+  "created": "2026-04-07",
+  "granularity": "medium",
+  "commit_docs": true,
+  "yolo_mode": false,
+  "agents": {
+    "architect": "claude",
+    "implementer": "codex",
+    "reviewer": "gemini"
+  }
+}
