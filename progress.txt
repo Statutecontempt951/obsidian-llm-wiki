@@ -1,22 +1,26 @@
 # vault-mind Progress
 
-## What done (2026-04-07, session 6)
-- Phase 4: Unified Query + Compile Triggers (MVP complete!)
+## What done (2026-04-07, session 6 -- ALL PHASES COMPLETE)
+- Phase 4: Unified Query + Compile Triggers (MVP)
   - unifiedQuery(): Promise.allSettled parallel search, weighted fusion merge
-  - adapter-memu: subprocess bridge to memU Python retrieve (pgvector cosine)
-  - adapter-gitnexus: subprocess bridge to GitNexus CLI
-  - CompileTrigger: dirty queue + auto-batch at threshold (3 files)
-  - query.unified/search/explain + compile.run/status/diff/abort MCP methods wired
-  - Code review: 2 P0 + 3 P1 fixed (injection, race, isAvailable gate, fileURLToPath, per-adapter maxResults)
-- 8 commits, ~7000 lines, TS 0 errors, ruff 全绿
-- Previous: Phase 1-3 (scaffold, MCP server 17 methods, compiler pipeline)
+  - adapter-memu + adapter-gitnexus (subprocess bridges)
+  - CompileTrigger: dirty queue + auto-batch
+  - Code review: 2P0+3P1 fixed
+- Phase 5: Agent Scheduler (Claude executor)
+  - evaluate.py: vault state assessment, prioritized actions, --status/--trigger/--history
+  - scheduler.py: state machine (IDLE->EVALUATE->ACTION->REPORT), --mode day/night/auto
+  - makeAgentDispatch wired into index.ts, 3 Python tests passing
+- Phase 6: Distribution + Skills (Gemini 4 + Claude fixes)
+  - setup.sh: one-click install with --help, Windows compat, idempotent
+  - vault-health + vault-reconcile new skills
+  - 7 existing skills adapted to vault-mind MCP tools
+  - README.md with install + architecture + comparison
+  - Code review: 2P0+3P1 fixed in setup.sh
+- 12 commits, ~9000 lines, tsc/ruff/pytest all green
 
 ## What blocked
 - 无
 
 ## Next step
-- Phase 5: agent/evaluate.py 按矛盾论三论合一重写 (不是 if/elif 优先级遍历)
-  - scheduler.py 状态机 (IDLE -> EVALUATE -> ACTION -> REPORT)
-  - 白天/夜间模式
-  - agent.status/trigger/schedule/history MCP methods
-- Phase 6: setup.sh + skills 迁入 + vault-health + vault-reconcile
+- v1.0 release prep: GitHub release, demo recording, community post
+- 可选优化: cron scheduling (agent.schedule), dreamtime integration, vault.init MCP method
