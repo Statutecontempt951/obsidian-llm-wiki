@@ -1,26 +1,33 @@
 # vault-mind Progress
 
-## What done (2026-04-07, session 6 -- ALL PHASES COMPLETE)
-- Phase 4: Unified Query + Compile Triggers (MVP)
-  - unifiedQuery(): Promise.allSettled parallel search, weighted fusion merge
-  - adapter-memu + adapter-gitnexus (subprocess bridges)
-  - CompileTrigger: dirty queue + auto-batch
-  - Code review: 2P0+3P1 fixed
-- Phase 5: Agent Scheduler (Claude executor)
-  - evaluate.py: vault state assessment, prioritized actions, --status/--trigger/--history
-  - scheduler.py: state machine (IDLE->EVALUATE->ACTION->REPORT), --mode day/night/auto
-  - makeAgentDispatch wired into index.ts, 3 Python tests passing
-- Phase 6: Distribution + Skills (Gemini 4 + Claude fixes)
-  - setup.sh: one-click install with --help, Windows compat, idempotent
-  - vault-health + vault-reconcile new skills
-  - 7 existing skills adapted to vault-mind MCP tools
-  - README.md with install + architecture + comparison
-  - Code review: 2P0+3P1 fixed in setup.sh
-- 12 commits, ~9000 lines, tsc/ruff/pytest all green
+## What done (2026-04-08, session 7 -- v1.0.0 TAGGED LOCALLY)
 
-## What blocked
-- 无
+- Branch renamed: master -> main
+- 4 post-release commits on top of 9139a2b:
+  - b5f21a0 chore: gitignore harness runtime state
+  - 498e3b7 fix(mcp): thread detected config path into agent evaluate.py
+  - f451d12 ci: cache npm install and align branch to main
+  - da6e6b1 docs: v1.0.0 changelog and release notes
+- Tag v1.0.0 created locally, pointing to da6e6b1
+- CHANGELOG.md + RELEASE_NOTES.md drafted by Gemini 4 (background),
+  fact-checked by Claude (removed fabricated requirements.txt claim)
+
+## What blocked (push prerequisites)
+
+1. **Privacy**: author email is `2233admin <1497479966@qq.com>` on all 17 commits
+   including the 13 pre-v1.0 ones. QQ number leak per `pr-privacy-check` rule.
+   Decision needed: rebase-rewrite all 17 commits to anonymous email before push?
+2. **No GitHub origin remote**: only `gitea` and `gitea-fix` (the latter has a
+   plaintext token in URL) are configured. Need to add
+   `git@github.com:2233admin/obsidian-llm-wiki.git` if publishing to GitHub.
+3. **gitea-fix token hygiene**: remote URL embeds plaintext access token.
+   Should be removed or converted to SSH before any git operation surfaces it.
 
 ## Next step
-- v1.0 release prep: GitHub release, demo recording, community post
-- 可选优化: cron scheduling (agent.schedule), dreamtime integration, vault.init MCP method
+
+- Resolve push prerequisites (privacy + origin + gitea-fix)
+- Push to gitea (and/or github) + push tag v1.0.0
+- GitHub release from CHANGELOG.md + RELEASE_NOTES.md
+- demo recording (optional)
+- community post (optional)
+- Post-v1.0: cron scheduling (agent.schedule), dreamtime integration, vault.init MCP method
