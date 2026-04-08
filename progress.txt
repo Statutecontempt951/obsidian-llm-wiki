@@ -1,33 +1,42 @@
 # vault-mind Progress
 
-## What done (2026-04-08, session 7 -- v1.0.0 TAGGED LOCALLY)
+## What done (2026-04-08, session 7 -- v1.0.0 SHIPPED to GitHub)
 
-- Branch renamed: master -> main
-- 4 post-release commits on top of 9139a2b:
-  - b5f21a0 chore: gitignore harness runtime state
-  - 498e3b7 fix(mcp): thread detected config path into agent evaluate.py
-  - f451d12 ci: cache npm install and align branch to main
-  - da6e6b1 docs: v1.0.0 changelog and release notes
-- Tag v1.0.0 created locally, pointing to da6e6b1
-- CHANGELOG.md + RELEASE_NOTES.md drafted by Gemini 4 (background),
-  fact-checked by Claude (removed fabricated requirements.txt claim)
+- 18 commits' author/committer email rewritten via filter-branch:
+  `1497479966@qq.com` -> `2233admin@users.noreply.github.com`
+- v1.0.0 tag recreated with no-reply tagger email (was tagged by QQ email)
+- gitea-fix remote removed (token leak resolved)
+- GitHub origin added: https://github.com/2233admin/obsidian-llm-wiki.git
+- Old remote master (v0.1.0 Obsidian-plugin era) preserved as
+  `legacy-v0.1.0-obsidian-plugin` branch
+- Local main pushed to origin, default branch switched to main
+- Old master branch deleted from GitHub
+- v1.0.0 tag pushed
+- Repo state on GitHub: 5 stars, 3 forks (4 days organic)
+- Local cleanup: refs/original/, backup branch, github-tmp/master removed
 
-## What blocked (push prerequisites)
+## Branch / tag layout
 
-1. **Privacy**: author email is `2233admin <1497479966@qq.com>` on all 17 commits
-   including the 13 pre-v1.0 ones. QQ number leak per `pr-privacy-check` rule.
-   Decision needed: rebase-rewrite all 17 commits to anonymous email before push?
-2. **No GitHub origin remote**: only `gitea` and `gitea-fix` (the latter has a
-   plaintext token in URL) are configured. Need to add
-   `git@github.com:2233admin/obsidian-llm-wiki.git` if publishing to GitHub.
-3. **gitea-fix token hygiene**: remote URL embeds plaintext access token.
-   Should be removed or converted to SSH before any git operation surfaces it.
+- `main` (default) -- v1.0.0 headless-first MCP architecture (18 commits)
+- `legacy-v0.1.0-obsidian-plugin` (archive) -- v0.1.0 Obsidian-plugin era,
+  1 commit, retained for historical reference
+- tag `v1.0.0` -- points to docs commit (CHANGELOG + RELEASE_NOTES)
+- tag `v0.1.0` -- still points to legacy commit, retains QQ email in
+  the original commit object (acceptable per A-plan: water already
+  spilled when v0.1.0 was first published 4 days ago)
+
+## Outstanding
+
+- GitHub release from CHANGELOG.md + RELEASE_NOTES.md (manual via gh CLI)
+- CLAUDE.md "Recommended Stack" section still describes the v0.1.0
+  Obsidian-plugin architecture; needs rewrite to match v1.0 headless-first
+- Track 6 dedup execution (~65 file deletes in E:/knowledge, awaits
+  Curry authorization)
+- Track 2a adapter-bases implementation (~1 week, biggest v1.1 investment)
 
 ## Next step
 
-- Resolve push prerequisites (privacy + origin + gitea-fix)
-- Push to gitea (and/or github) + push tag v1.0.0
-- GitHub release from CHANGELOG.md + RELEASE_NOTES.md
-- demo recording (optional)
-- community post (optional)
-- Post-v1.0: cron scheduling (agent.schedule), dreamtime integration, vault.init MCP method
+- Cut GitHub release with gh CLI from CHANGELOG.md + RELEASE_NOTES.md
+- Update CLAUDE.md tech stack to reflect v1.0 reality
+- Optionally push main to gitea remote as well (mirror)
+- Begin Track 2a adapter-bases (separate session)
