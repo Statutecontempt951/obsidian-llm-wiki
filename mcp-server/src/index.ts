@@ -527,13 +527,23 @@ function makeQueryDispatch(registry: AdapterRegistry) {
   };
 }
 
-function makeAgentDispatch(vaultPath: string, compilerPath: string, python: string) {
+function makeAgentDispatch(
+  vaultPath: string,
+  compilerPath: string,
+  python: string,
+  configPath?: string,
+) {
   return async (method: string, params: Record<string, unknown>): Promise<unknown> => {
     const evaluatePy = resolve(compilerPath, "evaluate.py");
+    const baseArgs = [evaluatePy];
+    if (configPath) {
+      baseArgs.push("--config", configPath);
+    }
+    baseArgs.push("--vault", vaultPath);
 
     switch (method) {
       case "agent.status": {
-        const args = [evaluatePy, "--status", "--vault", vaultPath];
+        const args = [...baseArgs, "--status"];
         const mode = params.mode as string | undefined;
         if (mode) args.push("--mode", mode);
         try {
@@ -555,7 +565,7 @@ function makeAgentDispatch(vaultPath: string, compilerPath: string, python: stri
         if (!validActions.includes(action)) {
           throw err(-32602, `Unknown action: ${action}. Valid: ${validActions.join(", ")}`);
         }
-        const args = [evaluatePy, "--trigger", action, "--vault", vaultPath];
+        const args = [...baseArgs, "--trigger", action];
         const mode = params.mode as string | undefined;
         if (mode) args.push("--mode", mode);
         try {
@@ -574,7 +584,7 @@ function makeAgentDispatch(vaultPath: string, compilerPath: string, python: stri
         return { status: "not_implemented", message: "agent.schedule is Phase 6 work" };
 
       case "agent.history": {
-        const args = [evaluatePy, "--history", "--vault", vaultPath];
+        const args = [...baseArgs, "--history"];
         const limit = params.limit as number | undefined;
         if (limit !== undefined) args.push("--limit", String(limit));
         try {
@@ -665,17 +675,23 @@ async function main(): Promise<void> {
   // --- Compile trigger ---
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const compilerPath = resolve(__dirname, "../../compiler");
+  const python = process.env.VAULT_MIND_PYTHON ?? process.env.PYTHON ?? "python";
   const compileTrigger = new CompileTrigger({
     vaultPath: config.vault_path,
     compilerPath,
+    python,
   });
 
   // --- Dispatchers ---
   const vaultFs = new VaultFs(config.vault_path);
   const queryDispatch = makeQueryDispatch(registry);
   const compileDispatch = makeCompileDispatch(compileTrigger);
-  const python = process.env.VAULT_MIND_PYTHON ?? process.env.PYTHON ?? "python";
-  const agentDispatch = makeAgentDispatch(config.vault_path, compilerPath, python);
+  const agentDispatch = makeAgentDispatch(
+    config.vault_path,
+    compilerPath,
+    python,
+    config.config_path,
+  );
 
   const server = new Server(
     { name: "vault-mind", version: VERSION },
