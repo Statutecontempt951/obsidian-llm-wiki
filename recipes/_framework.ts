@@ -1,6 +1,6 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import type { Recipe, RecipeFrontmatter, RecipeStatus, RecipeEvent } from './_types.js';
 
@@ -139,6 +139,22 @@ export function parseRecipe(filePath: string): Recipe {
     }
   }
 
+  // Structural validation for optional array fields
+  if (raw.secrets != null && !Array.isArray(raw.secrets)) {
+    throw new Error(`Recipe '${filePath}': 'secrets' must be an array, got ${typeof raw.secrets}`);
+  }
+  if (raw.health_checks != null && !Array.isArray(raw.health_checks)) {
+    throw new Error(`Recipe '${filePath}': 'health_checks' must be an array, got ${typeof raw.health_checks}`);
+  }
+  if (raw.requires != null && !Array.isArray(raw.requires)) {
+    // requires: [] inline syntax may parse as string "[]" — treat it as empty array
+    if (raw.requires === '[]') {
+      raw.requires = [];
+    } else {
+      throw new Error(`Recipe '${filePath}': 'requires' must be an array, got ${typeof raw.requires}`);
+    }
+  }
+
   const frontmatter = raw as unknown as RecipeFrontmatter;
 
   return { frontmatter, body, filePath };
@@ -176,13 +192,17 @@ export function getRecipeStatus(recipe: Recipe): RecipeStatus {
  * Uses execSync with 10s timeout, captures stdout+stderr.
  */
 export function runHealthCheck(command: string): { ok: boolean; output: string } {
+  // Health check commands come from shipped recipe files (trusted authors).
+  // We need an explicit POSIX shell because commands use $VAR expansion and &&.
+  const shell = process.platform === 'win32' ? 'bash' : '/bin/sh';
+  const shellFlag = '-c';
   try {
-    const output = execSync(command, {
+    const output = execFileSync(shell, [shellFlag, command], {
       timeout: 10_000,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    return { ok: true, output: output.trim() };
+    return { ok: true, output: (output as string).trim() };
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; message?: string };
     const output = [e.stdout, e.stderr, e.message].filter(Boolean).join('\n').trim();

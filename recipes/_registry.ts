@@ -25,8 +25,9 @@ export function scanRecipes(recipesDir?: string): Recipe[] {
     const filePath = join(dir, entry.name);
     try {
       recipes.push(parseRecipe(filePath));
-    } catch {
-      // Skip malformed recipe files silently
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[recipes] Skipping malformed recipe ${filePath}: ${msg}\n`);
     }
   }
 
