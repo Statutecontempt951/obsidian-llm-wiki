@@ -53,9 +53,11 @@ async function main(): Promise<void> {
     error: (msg) => process.stderr.write(`[ERROR] ${msg}\n`),
   };
 
-  const vaultPath = transport instanceof FsTransport ? transport.vaultPath : '';
+  const vaultPath = transport instanceof FsTransport ? transport.vaultPath : (info?.vault ?? '');
 
   const ctx: OperationContext = {
+    // SAFETY: Only .execute() is called through ctx.vault in all operations[] handlers.
+    // Typed methods (read, write, etc.) are not called directly. TODO: narrow to ConnectorBackend interface.
     vault: transport as unknown as VaultBackend,
     adapters: null,
     config: { vault_path: vaultPath },
@@ -85,70 +87,74 @@ async function main(): Promise<void> {
   const rl = readline.createInterface({ input: process.stdin, terminal: false });
 
   rl.on('line', async (line) => {
-    if (!line.trim()) return;
-    let req: { method: string; params?: Record<string, unknown>; id: unknown };
     try {
-      req = JSON.parse(line);
-    } catch {
-      write({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
-      return;
-    }
+      if (!line.trim()) return;
+      let req: { method: string; params?: Record<string, unknown>; id: unknown };
+      try {
+        req = JSON.parse(line);
+      } catch {
+        write({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
+        return;
+      }
 
-    const { method, params, id } = req;
+      const { method, params, id } = req;
 
-    if (method === 'initialize') {
-      write({
-        jsonrpc: '2.0', id, result: {
-          protocolVersion: '2024-11-05',
-          capabilities: { tools: {} },
-          serverInfo: { name: 'vault-mind-connector', version: VERSION },
-        },
-      });
-      return;
-    }
-
-    if (method === 'notifications/initialized') return;
-
-    if (method === 'tools/list') {
-      write({ jsonrpc: '2.0', id, result: { tools: toolDefs } });
-      return;
-    }
-
-    if (method === 'tools/call') {
-      const toolName = (params as { name?: string } | undefined)?.name;
-      const toolArgs = ((params as { arguments?: Record<string, unknown> } | undefined)?.arguments) || {};
-
-      const op = vaultOps.find(o => o.name === toolName);
-      if (!op) {
+      if (method === 'initialize') {
         write({
           jsonrpc: '2.0', id, result: {
-            content: [{ type: 'text', text: `Error: Unknown tool: ${toolName}` }],
-            isError: true,
+            protocolVersion: '2024-11-05',
+            capabilities: { tools: {} },
+            serverInfo: { name: 'vault-mind-connector', version: VERSION },
           },
         });
         return;
       }
 
-      try {
-        const result = await op.handler(ctx, toolArgs);
-        write({
-          jsonrpc: '2.0', id, result: {
-            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-          },
-        });
-      } catch (e: unknown) {
-        const ex = e as { message?: string };
-        write({
-          jsonrpc: '2.0', id, result: {
-            content: [{ type: 'text', text: `Error: ${ex.message || String(e)}` }],
-            isError: true,
-          },
-        });
-      }
-      return;
-    }
+      if (method === 'notifications/initialized') return;
 
-    write({ jsonrpc: '2.0', id, error: { code: -32601, message: `Unknown method: ${method}` } });
+      if (method === 'tools/list') {
+        write({ jsonrpc: '2.0', id, result: { tools: toolDefs } });
+        return;
+      }
+
+      if (method === 'tools/call') {
+        const toolName = (params as { name?: string } | undefined)?.name;
+        const toolArgs = ((params as { arguments?: Record<string, unknown> } | undefined)?.arguments) || {};
+
+        const op = vaultOps.find(o => o.name === toolName);
+        if (!op) {
+          write({
+            jsonrpc: '2.0', id, result: {
+              content: [{ type: 'text', text: `Error: Unknown tool: ${toolName}` }],
+              isError: true,
+            },
+          });
+          return;
+        }
+
+        try {
+          const result = await op.handler(ctx, toolArgs);
+          write({
+            jsonrpc: '2.0', id, result: {
+              content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+            },
+          });
+        } catch (e: unknown) {
+          const ex = e as { message?: string };
+          write({
+            jsonrpc: '2.0', id, result: {
+              content: [{ type: 'text', text: `Error: ${ex.message || String(e)}` }],
+              isError: true,
+            },
+          });
+        }
+        return;
+      }
+
+      write({ jsonrpc: '2.0', id, error: { code: -32601, message: `Unknown method: ${method}` } });
+    } catch (e) {
+      process.stderr.write(`vault-mind connector: internal error: ${(e as Error).message}\n`);
+    }
   });
 
   rl.on('close', () => { transport.close(); process.exit(0); });
