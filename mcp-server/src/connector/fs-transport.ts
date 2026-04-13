@@ -500,5 +500,9 @@ export class FsTransport {
     return re.test(p);
   }
 
+  async execute(method: string, params: Record<string, unknown>): Promise<unknown> {
+    return this.dispatch(method, params);
+  }
+
   close(): void {}
 }

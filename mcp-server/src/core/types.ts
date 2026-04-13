@@ -105,6 +105,8 @@ export interface VaultBackend {
   exists(path: string): Promise<boolean>;
   graph(): Promise<GraphData>;
   backlinks(path: string): Promise<BacklinkResult[]>;
+  // Generic dispatch for vault.* methods not covered by typed methods above
+  execute(method: string, params: Record<string, unknown>): Promise<unknown>;
 }
 
 export function makeErr(code: number, message: string): { code: number; message: string } {

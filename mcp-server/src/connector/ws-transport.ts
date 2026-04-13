@@ -83,5 +83,15 @@ export class WsTransport {
     });
   }
 
+  async execute(method: string, params: Record<string, unknown>): Promise<unknown> {
+    const id = `exec-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const resp = await this.call(method, params, id);
+    if (resp.error) {
+      const e: { code: number; message: string } = resp.error;
+      throw e;
+    }
+    return resp.result;
+  }
+
   close(): void { if (this.ws) this.ws.close(); }
 }
