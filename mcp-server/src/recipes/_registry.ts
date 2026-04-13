@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseRecipe } from './_framework.js';
 import type { Recipe } from './_types.js';
 
-const DEFAULT_RECIPES_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_RECIPES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'recipes');
 
 /**
  * Scan the recipes/ directory for all .md files (excluding _ prefixed files).

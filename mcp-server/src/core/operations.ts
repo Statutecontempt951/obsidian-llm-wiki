@@ -1,4 +1,6 @@
 import type { Operation } from './types.js';
+import { scanRecipes, findRecipe } from '../recipes/_registry.js';
+import { getRecipeStatus, runHealthCheck, appendHeartbeat } from '../recipes/_framework.js';
 
 export const operations: Operation[] = [
   {
@@ -217,5 +219,78 @@ export const operations: Operation[] = [
       query: { type: 'string', required: true, description: 'Search query string' },
     },
     handler: async (ctx, params) => ctx.vault.execute('vault.externalSearch', params),
+  },
+
+  // ── recipe namespace ──────────────────────────────────────────
+  {
+    name: 'recipe.list',
+    namespace: 'recipe',
+    description: 'List all recipes with their status (secrets present/missing)',
+    mutating: false,
+    params: {},
+    handler: async (_ctx, _params) => {
+      const recipes = scanRecipes();
+      return recipes.map(r => ({
+        id: r.frontmatter.id,
+        name: r.frontmatter.name,
+        version: r.frontmatter.version,
+        category: r.frontmatter.category,
+        description: r.frontmatter.description,
+        status: getRecipeStatus(r),
+      }));
+    },
+  },
+  {
+    name: 'recipe.show',
+    namespace: 'recipe',
+    description: "Show a recipe's frontmatter and setup guide",
+    mutating: false,
+    params: {
+      id: { type: 'string', required: true, description: 'Recipe id (e.g. x-to-vault)' },
+    },
+    handler: async (_ctx, params) => {
+      const recipe = findRecipe(params.id as string);
+      if (!recipe) throw new Error(`Recipe not found: ${params.id}`);
+      return { frontmatter: recipe.frontmatter, body: recipe.body };
+    },
+  },
+  {
+    name: 'recipe.status',
+    namespace: 'recipe',
+    description: 'Check secret configuration status for a recipe',
+    mutating: false,
+    params: {
+      id: { type: 'string', required: true, description: 'Recipe id' },
+    },
+    handler: async (_ctx, params) => {
+      const recipe = findRecipe(params.id as string);
+      if (!recipe) throw new Error(`Recipe not found: ${params.id}`);
+      return getRecipeStatus(recipe);
+    },
+  },
+  {
+    name: 'recipe.doctor',
+    namespace: 'recipe',
+    description: 'Full diagnostic: secrets + health checks for a recipe',
+    mutating: false,
+    params: {
+      id: { type: 'string', required: true, description: 'Recipe id' },
+    },
+    handler: async (_ctx, params) => {
+      const recipe = findRecipe(params.id as string);
+      if (!recipe) throw new Error(`Recipe not found: ${params.id}`);
+      const status = getRecipeStatus(recipe);
+      const checks: Array<{ command: string; ok: boolean; output: string }> = [];
+      for (const hc of recipe.frontmatter.health_checks ?? []) {
+        const result = runHealthCheck(hc.command);
+        checks.push({ command: hc.command, ...result });
+        appendHeartbeat(recipe.frontmatter.id, {
+          ts: new Date().toISOString(),
+          event: 'doctor',
+          data: { ok: result.ok },
+        });
+      }
+      return { status, health_checks: checks };
+    },
   },
 ];
