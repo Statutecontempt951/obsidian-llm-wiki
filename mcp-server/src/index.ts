@@ -32,6 +32,8 @@ interface VaultMindConfig {
   vault_path: string;
   auth_token?: string;
   adapters?: string[];
+  /** Per-adapter score weight multipliers, e.g. { obsidian: 1.2, filesystem: 0.8 } */
+  adapter_weights?: Record<string, number>;
   config_path?: string;
 }
 
@@ -45,9 +47,11 @@ function loadConfig(): VaultMindConfig {
   }
   const vaultPath = process.env.VAULT_MIND_VAULT_PATH || process.env.VAULT_BRIDGE_VAULT || "";
   if (!vaultPath) throw new Error("No vault-mind.yaml found and VAULT_MIND_VAULT_PATH not set");
+  const envWeights = process.env.VAULT_MIND_ADAPTER_WEIGHTS;
   return {
     vault_path: vaultPath,
     auth_token: process.env.VAULT_MIND_AUTH_TOKEN,
+    adapter_weights: envWeights ? (JSON.parse(envWeights) as Record<string, number>) : undefined,
     config_path: undefined,
   };
 }
@@ -65,10 +69,18 @@ function parseSimpleYaml(raw: string): VaultMindConfig {
       val = val.slice(1, -1);
     result[key] = val;
   }
+  const adapterWeights: Record<string, number> = {};
+  for (const [k, v] of Object.entries(result)) {
+    if (k.startsWith("adapter_weight_")) {
+      const n = Number(v);
+      if (!isNaN(n)) adapterWeights[k.slice("adapter_weight_".length)] = n;
+    }
+  }
   return {
     vault_path: result["vault_path"] || "",
     auth_token: result["auth_token"],
     adapters: result["adapters"]?.split(",").map((s) => s.trim()),
+    adapter_weights: Object.keys(adapterWeights).length > 0 ? adapterWeights : undefined,
   };
 }
 
@@ -495,16 +507,23 @@ function makeCompileDispatch(trigger: CompileTrigger) {
   };
 }
 
-function makeQueryDispatch(registry: AdapterRegistry) {
+function makeQueryDispatch(registry: AdapterRegistry, defaultWeights?: Record<string, number>) {
   return async (method: string, params: Record<string, unknown>): Promise<unknown> => {
     switch (method) {
       case "query.unified": {
         const query = params.query as string;
         if (!query) throw err(-32602, "query required");
+        // Merge: defaultWeights < caller-provided weights (caller wins per-key)
+        const weights = {
+          ...defaultWeights,
+          ...(params.weights as Record<string, number> | undefined),
+        };
         return unifiedQuery(registry, query, {
           maxResults: (params.maxResults as number) ?? 50,
+          caseSensitive: (params.caseSensitive as boolean) ?? false,
+          context: params.context as number | undefined,
           adapters: params.adapters as string[] | undefined,
-          weights: params.weights as Record<string, number> | undefined,
+          weights: Object.keys(weights).length > 0 ? weights : undefined,
         });
       }
       case "query.search": {
@@ -520,7 +539,21 @@ function makeQueryDispatch(registry: AdapterRegistry) {
         // explain: search for concept, return top results with context
         const concept = params.concept as string;
         if (!concept) throw err(-32602, "concept required");
-        return unifiedQuery(registry, concept, { maxResults: 10, context: 3 });
+        const weights = { ...defaultWeights };
+        return unifiedQuery(registry, concept, {
+          maxResults: 10,
+          context: 3,
+          weights: Object.keys(weights).length > 0 ? weights : undefined,
+        });
+      }
+      case "query.adapters": {
+        return {
+          adapters: registry.list().map((a) => ({
+            name: a.name,
+            capabilities: [...a.capabilities],
+            isAvailable: a.isAvailable,
+          })),
+        };
       }
       default:
         throw err(-32601, `Unknown method: ${method}`);
@@ -628,9 +661,10 @@ function getToolDefinitions() {
     { name: "compile.run", description: "Run compilation", inputSchema: { type: "object", properties: { topic: { type: "string" } } } },
     { name: "compile.diff", description: "Show compilation diff", inputSchema: { type: "object", properties: { topic: { type: "string" } } } },
     { name: "compile.abort", description: "Abort running compilation", inputSchema: { type: "object", properties: {} } },
-    { name: "query.unified", description: "Unified knowledge query", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-    { name: "query.search", description: "Search knowledge base", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-    { name: "query.explain", description: "Explain a concept", inputSchema: { type: "object", properties: { concept: { type: "string" } }, required: ["concept"] } },
+    { name: "query.unified", description: "Unified knowledge query across all active adapters (filesystem, obsidian, memu, gitnexus)", inputSchema: { type: "object", properties: { query: { type: "string" }, maxResults: { type: "integer", default: 50 }, adapters: { type: "array", items: { type: "string" }, description: "Limit to specific adapters by name" }, weights: { type: "object", description: "Per-adapter score weight multipliers, e.g. {\"obsidian\":1.2,\"filesystem\":0.8}" }, caseSensitive: { type: "boolean", default: false }, context: { type: "integer", description: "Lines of surrounding context per match" } }, required: ["query"] } },
+    { name: "query.search", description: "Search knowledge base (filesystem adapter only)", inputSchema: { type: "object", properties: { query: { type: "string" }, maxResults: { type: "integer", default: 50 } }, required: ["query"] } },
+    { name: "query.explain", description: "Explain a concept using top-10 cross-adapter results with 3-line context", inputSchema: { type: "object", properties: { concept: { type: "string" } }, required: ["concept"] } },
+    { name: "query.adapters", description: "List registered adapters, their capabilities, and availability", inputSchema: { type: "object", properties: {} } },
     { name: "agent.status", description: "Get agent status", inputSchema: { type: "object", properties: {} } },
     { name: "agent.trigger", description: "Trigger an agent action", inputSchema: { type: "object", properties: { action: { type: "string" } }, required: ["action"] } },
     { name: "agent.schedule", description: "Schedule an agent task", inputSchema: { type: "object", properties: { task: { type: "string" }, cron: { type: "string" } }, required: ["task"] } },
@@ -659,7 +693,7 @@ async function main(): Promise<void> {
   }
 
   // Optional adapters -- init gracefully, don't block if unavailable
-  const enabledAdapters = new Set(config.adapters ?? ["filesystem", "memu", "gitnexus"]);
+  const enabledAdapters = new Set(config.adapters ?? ["filesystem", "memu", "gitnexus", "obsidian"]);
 
   if (enabledAdapters.has("memu")) {
     const memuAdapter = new MemUAdapter();
@@ -691,7 +725,7 @@ async function main(): Promise<void> {
 
   // --- Dispatchers ---
   const vaultFs = new VaultFs(config.vault_path);
-  const queryDispatch = makeQueryDispatch(registry);
+  const queryDispatch = makeQueryDispatch(registry, config.adapter_weights);
   const compileDispatch = makeCompileDispatch(compileTrigger);
   const agentDispatch = makeAgentDispatch(
     config.vault_path,

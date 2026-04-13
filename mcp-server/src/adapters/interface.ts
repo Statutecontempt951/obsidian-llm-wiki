@@ -72,6 +72,9 @@ export interface VaultMindAdapter {
   /** Declared capabilities -- unified query checks these before calling methods */
   readonly capabilities: readonly AdapterCapability[];
 
+  /** True if the adapter successfully connected and is ready to serve requests */
+  readonly isAvailable?: boolean;
+
   // --- Core (implement what you can) ---
 
   search?(query: string, opts?: SearchOpts): Promise<SearchResult[]>;
