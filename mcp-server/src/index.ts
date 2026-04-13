@@ -18,6 +18,7 @@ import { promisify } from "node:util";
 import { FilesystemAdapter } from "./adapters/filesystem.js";
 import { MemUAdapter } from "./adapters/memu.js";
 import { GitNexusAdapter } from "./adapters/gitnexus.js";
+import { ObsidianAdapter } from "./adapters/obsidian.js";
 import { AdapterRegistry } from "./adapters/registry.js";
 import { unifiedQuery } from "./unified-query.js";
 import { CompileTrigger } from "./compile-trigger.js";
@@ -670,6 +671,12 @@ async function main(): Promise<void> {
     const gnAdapter = new GitNexusAdapter();
     await gnAdapter.init();
     if (gnAdapter.isAvailable) registry.register(gnAdapter);
+  }
+
+  if (enabledAdapters.has("obsidian")) {
+    const obsAdapter = new ObsidianAdapter();
+    await obsAdapter.init();
+    if (obsAdapter.isAvailable) registry.register(obsAdapter);
   }
 
   // --- Compile trigger ---
