@@ -1,5 +1,5 @@
 {
-  "name": "@vault-mind/mcp",
+  "name": "@obsidian-llm-wiki/mcp",
   "version": "0.1.0",
   "description": "Knowledge OS MCP server -- unified vault operations, compilation, and query",
   "type": "module",

@@ -1,4 +1,4 @@
-# CLAUDE.md — vault-mind
+# CLAUDE.md — obsidian-llm-wiki
 
 ## What This Is
 
