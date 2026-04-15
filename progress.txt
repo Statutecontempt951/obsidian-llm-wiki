@@ -121,7 +121,36 @@
 - Optionally push main to gitea mirror
 - Future: narrow VaultBackend cast (VaultExecutor interface -- tracked in SAFETY comments)
 
+## 2026-04-15 -- voile-to-vault recipe COMPLETE
+
+### What done
+
+- Investigated Voile (github.com/2233admin/voile): QQ+WeChat ingestion system
+  - Python+Go+Rust, writes to E:/knowledge via ObsidianWriter
+  - Schema: messages/message_topics/message_sentiments/links tables (SQLAlchemy)
+  - Voile DB not yet set up; collector ready to activate when it is
+- `recipes/collectors/voile-collector.ts`: Bun-native Postgres collector
+  - `import { sql } from 'bun'` -- zero npm deps, Bun 1.2+ native
+  - Auto-discover channels (SELECT DISTINCT) + VOILE_CHANNELS override (自动+指定)
+  - since_id cursor per channel, checkpoints after each channel
+  - Graceful skip if message_topics/message_sentiments not yet populated
+  - Graceful error on DB connect failure (exit 1 with helpful message)
+- `recipes/voile-to-vault.md`: recipe frontmatter + setup docs
+- Collector recipe map now: x-to-vault (done), voile-to-vault (done, awaits Voile DB),
+  feishu-to-vault (next), gmail/calendar/circleback (later, need OAuth gateway)
+- All 64 existing tests still pass. commit 83a2355.
+
+### Outstanding
+
+- Voile DB setup: once Voile docker compose is running with data, voile-collector
+  can run immediately (VOILE_DB_URL=postgres://postgres:postgres@localhost:5432/voile)
+- Track 6 dedup execution (~65 file deletes in E:/knowledge, awaits Curry authorization)
+- main/master branch strategy decision
+- Optionally push main to gitea mirror
+- Future: narrow VaultBackend cast (VaultExecutor interface -- tracked in SAFETY comments)
+
 ## Next step
 
-- Wire new connector into .mcp.json, manual test (Obsidian open/closed) [Phase 1B original item]
-- OR Track 2b: wire ObsidianAdapter into unifiedQuery score fusion
+- Feishu-to-vault collector (WebSocket mode, no public tunnel needed)
+  Reference: Hermes gateway/platforms/feishu.py + lark_oapi SDK
+- OR Wire new connector into .mcp.json, manual test (Obsidian open/closed)
