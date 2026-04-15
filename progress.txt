@@ -149,8 +149,35 @@
 - Optionally push main to gitea mirror
 - Future: narrow VaultBackend cast (VaultExecutor interface -- tracked in SAFETY comments)
 
+## 2026-04-15 -- feishu-to-vault collector COMPLETE
+
+### What done
+
+- `recipes/collectors/feishu-collector.ts`: REST API collector (tenant_access_token)
+  - Auth: POST /auth/v3/tenant_access_token/internal, token cached in-memory (2h TTL)
+  - Auto-discover all group chats bot is in (GET /im/v1/chats) + FEISHU_CHATS override
+  - since_time cursor per chat (Unix seconds), checkpoints after each chat
+  - Content extraction: text/post (rich text flattened) + media placeholders
+  - Graceful skip on code=230002/230003 (bot not in chat or missing scope)
+  - Required app scopes: im:message:readonly + im:chat:readonly
+- `recipes/feishu-to-vault.md`: recipe frontmatter + setup docs (app creation,
+  scope setup, bot group onboarding, cron)
+- Transpile verified: auth call reaches Feishu API, correct 10003 on bad creds
+- All 64 existing tests still pass. commit 17b9bf3.
+
+### Outstanding
+
+- Feishu activation: create app at open.feishu.cn, add bot to groups, set
+  FEISHU_APP_ID + FEISHU_APP_SECRET, run collector
+- Voile DB setup (voile-collector ready, awaits docker compose up)
+- Track 6 dedup execution (~65 file deletes in E:/knowledge, awaits Curry authorization)
+- main/master branch strategy decision
+- Optionally push main to gitea mirror
+- Future: narrow VaultBackend cast (VaultExecutor interface)
+
 ## Next step
 
-- Feishu-to-vault collector (WebSocket mode, no public tunnel needed)
-  Reference: Hermes gateway/platforms/feishu.py + lark_oapi SDK
+- gmail-to-vault or circleback-to-vault (Circleback has API key auth, simpler than OAuth)
 - OR Wire new connector into .mcp.json, manual test (Obsidian open/closed)
+- Collector map: x-to-vault (live), voile-to-vault (ready), feishu-to-vault (ready),
+  gmail/calendar (needs OAuth gateway), circleback (needs CIRCLEBACK_API_KEY)
