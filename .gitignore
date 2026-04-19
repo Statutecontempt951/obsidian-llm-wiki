@@ -29,3 +29,5 @@ fm_work/
 
 # Dogfood usage log (per-dev, not shared)
 .dogfood.log
+
+.dogfood.weekly.md

@@ -271,8 +271,37 @@ All awaiting activation (need credentials). X needs X_BEARER_TOKEN.
 - main/master branch decision (unchanged, still deferred)
 - Optionally push Gitea mirror
 
+## 2026-04-19 -- Week 2 Track A dogfood hard-start COMPLETE
+
+### What done
+
+- `.claude/settings.json` (project-scope, committed): registers two hooks
+  - PostToolUse matcher `mcp__vault-mind.*` -> logs tool call + query
+  - Stop -> logs session-end with 8-char session_id prefix
+- `scripts/hooks/dogfood-hook.py` (stdlib-only, zero-dep):
+  - Modes: `posttool` filters non-vault-mind tools, extracts query/path/id
+  - Mode `stop` records session end
+  - Non-blocking: exits 0 on any error (never breaks Claude Code)
+  - Output: tab-separated `ts\ttool\top\tnote` appended to `.dogfood.log`
+- `scripts/weekly-review.ps1`: reads last 7d of `.dogfood.log`, groups by op,
+  appends dated block to `.dogfood.weekly.md` (gitignored)
+- Windows scheduled task `obsidian-llm-wiki-weekly` registered via
+  `Register-ScheduledTask` (State=Ready, weekly Sunday 03:00 local)
+- Smoke test: 2 vault-mind calls + 2 session-end events logged; non-vault-mind
+  Read call correctly filtered out; weekly-review.ps1 produced rollup
+- `.gitignore`: add `.dogfood.weekly.md`
+
+### Outstanding (Week 2 remainder)
+
+- `/vault-save` session-end binding (separate from dogfood log -- actually writes
+  a recap note to the vault). Not done this session.
+- Gitea mirror push (optional)
+- main/master branch strategy decision (still deferred)
+
 ## Next step
 
-- Execute Phase B1-B5 + A0 (README, SEO, outreach drafts, dogfood log)
+- Track C Compiler: `compiler/link_discovery.py` skeleton
+  - scan 911 md files in E:/knowledge, LLM-suggest missing `[[wikilinks]]`,
+    write proposals to `.compile/link_suggestions.md`
+- Then `compiler/concept_graph.py` v0 producing `graph.json`
 - Roadmap file: C:/Users/Administrator/.claude/plans/breezy-stargazing-chipmunk.md
-- After Week 1: Track C Compiler work (link_discovery + concept_graph)
