@@ -17,6 +17,7 @@ import { FilesystemAdapter } from "./adapters/filesystem.js";
 import { MemUAdapter } from "./adapters/memu.js";
 import { GitNexusAdapter } from "./adapters/gitnexus.js";
 import { ObsidianAdapter } from "./adapters/obsidian.js";
+import { QmdAdapter } from "./adapters/qmd.js";
 import { VaultBrainAdapter } from "./adapters/vaultbrain/index.js";
 import { AdapterRegistry } from "./adapters/registry.js";
 import { CompileTrigger } from "./compile-trigger.js";
@@ -517,6 +518,126 @@ class VaultFs {
         }
         return { ok: true, topic: p.topic, created, skipped, summary: `Created ${created.length}, skipped ${skipped.length}` };
       }
+      case "vault.enforceDiscipline": {
+        const dryRun = p.dryRun !== false;
+        const topLevelOnly = p.topLevelOnly !== false;
+        const extraSkip = new Set(
+          Array.isArray(p.skipDirs) ? (p.skipDirs as string[]) : [],
+        );
+        const CATALOG_NAMES = new Set([
+          "_index.md", "home.md", "index.md", "readme.md",
+        ]);
+        const CHRONICLE_NAMES = new Set([
+          "log.md", "chronicle.md", "_log.md",
+        ]);
+        const now = new Date().toISOString().slice(0, 10);
+
+        type DirReport = {
+          path: string;
+          hasCatalog: string | null;
+          hasChronicle: string | null;
+          created: string[];
+          skipped: string[];
+        };
+
+        const processDir = (relDir: string, absDir: string): DirReport => {
+          const report: DirReport = {
+            path: relDir, hasCatalog: null, hasChronicle: null,
+            created: [], skipped: [],
+          };
+          const entries = readdirSync(absDir, { withFileTypes: true });
+          for (const ent of entries) {
+            if (!ent.isFile()) continue;
+            const lower = ent.name.toLowerCase();
+            if (CATALOG_NAMES.has(lower)) report.hasCatalog = ent.name;
+            if (CHRONICLE_NAMES.has(lower)) report.hasChronicle = ent.name;
+          }
+          const mdFiles = entries.filter((e) => e.isFile() && e.name.endsWith(".md")).map((e) => e.name).sort();
+          const subDirs = entries.filter(
+            (e) => e.isDirectory() && !PROTECTED_DIRS.has(e.name) && !extraSkip.has(e.name),
+          ).map((e) => e.name).sort();
+          const topicName = basename(relDir || this.vault);
+
+          if (!report.hasCatalog) {
+            const catalogPath = relDir ? posix.join(relDir, "_index.md") : "_index.md";
+            const absCatalog = this.resolve(catalogPath);
+            const body =
+              `---\ntopic: "${topicName}"\nupdated: ${now}\n---\n\n` +
+              `# ${topicName} -- Knowledge Index\n\n` +
+              (mdFiles.length
+                ? "## Notes in this topic\n\n" +
+                  mdFiles.map((f) => `- [[${f.replace(/\.md$/, "")}]]`).join("\n") + "\n\n"
+                : "") +
+              (subDirs.length
+                ? "## Subtopics\n\n" +
+                  subDirs.map((d) => `- \`${d}/\``).join("\n") + "\n"
+                : "");
+            if (!dryRun) {
+              writeFileSync(absCatalog, body, "utf-8");
+            }
+            report.created.push(catalogPath);
+          } else {
+            report.skipped.push(`${relDir}/${report.hasCatalog} (catalog exists)`);
+          }
+
+          if (!report.hasChronicle) {
+            const chroniclePath = relDir ? posix.join(relDir, "log.md") : "log.md";
+            const absChronicle = this.resolve(chroniclePath);
+            const body =
+              `---\ntopic: "${topicName}"\nupdated: ${now}\n---\n\n` +
+              `# ${topicName} -- Operation Log\n\n` +
+              `- ${now}: Karpathy LLM Wiki discipline enforced (retroactive).\n`;
+            if (!dryRun) {
+              writeFileSync(absChronicle, body, "utf-8");
+            }
+            report.created.push(chroniclePath);
+          } else {
+            report.skipped.push(`${relDir}/${report.hasChronicle} (chronicle exists)`);
+          }
+
+          return report;
+        };
+
+        const inspectedDirs: string[] = [];
+        const allCreated: string[] = [];
+        const allSkipped: string[] = [];
+        const errors: Array<{ path: string; message: string }> = [];
+
+        try {
+          const topEntries = readdirSync(this.vault, { withFileTypes: true });
+          for (const ent of topEntries) {
+            if (!ent.isDirectory()) continue;
+            if (PROTECTED_DIRS.has(ent.name) || extraSkip.has(ent.name)) continue;
+            if (ent.name.startsWith(".")) continue;
+            const relDir = ent.name;
+            inspectedDirs.push(relDir);
+            try {
+              const rep = processDir(relDir, this.resolve(relDir));
+              allCreated.push(...rep.created);
+              allSkipped.push(...rep.skipped);
+            } catch (e: unknown) {
+              errors.push({ path: relDir, message: (e as Error).message });
+            }
+          }
+        } catch (e: unknown) {
+          throw err(-32000, `enforceDiscipline failed to scan vault: ${(e as Error).message}`);
+        }
+
+        return {
+          dryRun,
+          topLevelOnly,
+          inspectedDirs,
+          created: allCreated,
+          skipped: allSkipped,
+          errors,
+          summary: {
+            dirsInspected: inspectedDirs.length,
+            filesCreated: allCreated.length,
+            filesSkipped: allSkipped.length,
+            errorCount: errors.length,
+          },
+        };
+      }
       case "vault.getMetadata": {
         const full = this.resolve(p.path as string);
         if (!existsSync(full)) throw err(-32001, `Not found: ${p.path}`);
@@ -565,7 +686,7 @@ async function main(): Promise<void> {
   }
 
   // Optional adapters -- init gracefully, don't block if unavailable
-  const enabledAdapters = new Set(config.adapters ?? ["filesystem", "memu", "gitnexus", "obsidian", "vaultbrain"]);
+  const enabledAdapters = new Set(config.adapters ?? ["filesystem", "memu", "gitnexus", "obsidian", "qmd", "vaultbrain"]);
 
   if (enabledAdapters.has("memu")) {
     const memuAdapter = new MemUAdapter();
@@ -583,6 +704,16 @@ async function main(): Promise<void> {
     const obsAdapter = new ObsidianAdapter();
     await obsAdapter.init();
     if (obsAdapter.isAvailable) registry.register(obsAdapter);
+  }
+
+  if (enabledAdapters.has("qmd")) {
+    const qmdCollection = process.env.VAULT_MIND_QMD_COLLECTION || undefined;
+    const qmdAdapter = new QmdAdapter({ collection: qmdCollection });
+    await qmdAdapter.init();
+    if (qmdAdapter.isAvailable) {
+      registry.register(qmdAdapter);
+      process.stderr.write("obsidian-llm-wiki: [qmd] adapter ready\n");
+    }
   }
 
   let vaultBrainAdapter: VaultBrainAdapter | null = null;

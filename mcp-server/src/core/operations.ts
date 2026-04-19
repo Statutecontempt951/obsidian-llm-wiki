@@ -220,6 +220,18 @@ export const operations: Operation[] = [
     handler: async (ctx, params) => ctx.vault.execute('vault.init', params),
   },
   {
+    name: 'vault.enforceDiscipline',
+    namespace: 'vault',
+    description: "Retroactively enforce Karpathy LLM Wiki discipline: ensure each top-level topic folder has _index.md (catalog) and log.md (chronicle). Skips folders that already have a recognized catalog (Home.md/INDEX.md/README.md) or chronicle (Log.md). Dry-run by default.",
+    mutating: true,
+    params: {
+      dryRun: { type: 'boolean', required: false, description: 'Simulate without writing (default: true)', default: true },
+      topLevelOnly: { type: 'boolean', required: false, description: 'Only process top-level directories (default: true)', default: true },
+      skipDirs: { type: 'array', required: false, description: 'Additional directory names to skip beyond the built-in protected list' },
+    },
+    handler: async (ctx, params) => ctx.vault.execute('vault.enforceDiscipline', params),
+  },
+  {
     name: 'vault.getMetadata',
     namespace: 'vault',
     description: 'Get parsed metadata for a note',
