@@ -164,8 +164,10 @@ export class FsTransport {
         if (!fs.existsSync(full)) throw { code: -32001, message: `Not found: ${p['path']}` };
         return { content: fs.readFileSync(full, 'utf-8') };
       }
-      case 'vault.exists':
-        return { exists: fs.existsSync(this.resolve(p['path'] as string)) };
+      case 'vault.exists': {
+        const existsPath = this.normalizeVaultPath((p['path'] as string) ?? '', { allowRoot: true });
+        return { exists: fs.existsSync(this.resolve(existsPath, { allowRoot: true })) };
+      }
       case 'vault.list': {
         const listPath = this.normalizeVaultPath((p['path'] as string) ?? '', { allowRoot: true });
         const dir = this.resolve(listPath, { allowRoot: true });
@@ -178,11 +180,13 @@ export class FsTransport {
         };
       }
       case 'vault.stat': {
-        const full = this.resolve(p['path'] as string);
+        const statPath = this.normalizeVaultPath((p['path'] as string) ?? '', { allowRoot: true });
+        const full = this.resolve(statPath, { allowRoot: true });
         if (!fs.existsSync(full)) throw { code: -32001, message: `Not found: ${p['path']}` };
         const st = fs.statSync(full);
-        if (st.isDirectory()) return { type: 'folder', path: p['path'], name: path.basename(p['path'] as string), children: fs.readdirSync(full).length };
-        return { type: 'file', path: p['path'], name: path.basename(p['path'] as string), ext: path.extname(p['path'] as string).slice(1), size: st.size, ctime: st.ctimeMs, mtime: st.mtimeMs };
+        const displayName = statPath === '' ? path.basename(this.vaultPath) : path.basename(statPath);
+        if (st.isDirectory()) return { type: 'folder', path: statPath, name: displayName, children: fs.readdirSync(full).length };
+        return { type: 'file', path: statPath, name: displayName, ext: path.extname(statPath).slice(1), size: st.size, ctime: st.ctimeMs, mtime: st.mtimeMs };
       }
       case 'vault.create': {
         const full = this.resolve(p['path'] as string);
