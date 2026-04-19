@@ -9,19 +9,26 @@ Not a RAG system. Not a vector database. A **compounding knowledge base** that y
 
 ---
 
-## Quick Start (3 Steps)
+## Quick Start
 
-1. **Clone the Repo**:
-   ```bash
-   git clone https://github.com/2233admin/obsidian-llm-wiki.git
-   cd obsidian-llm-wiki
-   ```
-2. **Run Setup**:
-   ```bash
-   bash setup.sh
-   ```
-3. **Restart Claude Code**:
-   Your new skills and MCP tools are now ready. Type `/vault-world` to begin.
+```bash
+git clone https://github.com/2233admin/obsidian-llm-wiki.git
+cd obsidian-llm-wiki
+bash setup.sh                     # prompts for your vault path
+# Restart Claude Code so the MCP registration takes effect.
+```
+
+`setup.sh` will:
+1. Check Node ≥ 20, Python ≥ 3.11, Claude Code CLI
+2. Build the MCP server (`npm install` + `tsc`)
+3. Install Python deps for the compiler
+4. Copy `vault-mind.example.yaml` → `vault-mind.yaml` and ask for your vault path
+5. Register the MCP server to `~/.claude.json` (user scope) with `VAULT_MIND_VAULT_PATH` env
+6. Install the `/vault-*` skills into `~/.claude/skills/`
+
+Project-scope `.mcp.json` is also committed — so if you open Claude Code in this
+directory without running `setup.sh`, the MCP server still activates automatically
+(using `vault-mind.yaml` you've created locally).
 
 > No database required. No embeddings required. Obsidian is **optional** — filesystem fallback always works.
 
@@ -95,18 +102,70 @@ The Karpathy LLM Wiki space got crowded fast in April 2026. Here's where obsidia
 
 ## Configuration
 
-Edit `vault-mind.yaml` to enable/disable adapters and adjust weights:
+Edit `vault-mind.yaml` (copy of `vault-mind.example.yaml`, git-ignored):
 
 ```yaml
-vault_path: E:/knowledge
+vault_path: "/absolute/path/to/your/obsidian/vault"
+
 adapters:
-  filesystem: { enabled: true }
-  obsidian:   { enabled: true, port_file: ~/.obsidian-ws-port }
-  memu:       { enabled: false }       # optional
-  gitnexus:   { enabled: false }       # optional
+  filesystem:
+    enabled: true
+  obsidian:
+    enabled: false   # set true when Obsidian is open with the WS bridge
+  memu:
+    enabled: false   # requires memU PostgreSQL + Python venv
+  gitnexus:
+    enabled: false   # requires gitnexus CLI on PATH
 ```
 
+Alternatively, skip the yaml and set `VAULT_MIND_VAULT_PATH` env var (what
+`setup.sh` does for user-scope registration).
+
 See `docs/config.md` for the full schema.
+
+---
+
+## Contributing
+
+Contributions welcome — small PRs especially. The project is GPL-3.0.
+
+**Dev setup:**
+```bash
+git clone https://github.com/2233admin/obsidian-llm-wiki.git
+cd obsidian-llm-wiki
+bash setup.sh                                  # if you want the MCP installed
+cd mcp-server
+npm install
+npm run build
+npm test                                       # 64+ tests, should all pass
+```
+
+**Quick sanity probe after build:**
+```bash
+python scripts/mcp_smoketest.py      # initialize + tools/list + vault.search
+python scripts/mcp_probe.py          # deeper probe: vault.list, search variants
+```
+Both spawn the MCP server via stdio and exit after a few seconds. If your bash
+profile exits 1 on non-tty stdin (an unrelated environment bug some users hit),
+use these Python wrappers.
+
+**PR conventions:**
+- Keep commits atomic. One concern per commit.
+- Conventional commit prefixes: `feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:`
+- Tests required for new vault.* operations (see `mcp-server/src/**/*.test.ts`).
+- New collectors need a `recipes/<name>-to-vault.md` recipe + `recipes/collectors/<name>-collector.ts` + health check.
+- Don't commit `vault-mind.yaml` (it's git-ignored for a reason — personal paths).
+
+**What we need help with:**
+- Concept-graph compiler (`compiler/link_discovery.py`, `compiler/concept_graph.py`) — currently aspirational, see roadmap
+- `qmd` adapter (Shopify's on-device search) — see Karpathy's gist recommendation
+- More collectors, especially non-Chinese chat ecosystems (Slack, Discord, Telegram)
+- Dogfood reports — actually use it on your vault and file issues about friction
+
+**Known env gotchas (contributor-hostile bugs we've hit):**
+- Windows Git Bash may alias `cat` → `bat`. If `cat file > other_file` writes ANSI color codes into `other_file`, your config gets corrupted invisibly. Hex-dump suspicious files.
+- Some shell profiles exit 1 on non-tty stdin, breaking `node script.mjs < input.json` style tests. Use the Python probe scripts as workaround.
+- Windows WinGet reparse-point shims are 0-byte symlinks that bash can't exec. Use Scoop or direct installs for `node`, `python`, `gh`.
 
 ---
 

@@ -98,12 +98,16 @@ if [ ! -f "vault-mind.yaml" ]; then
     # Convert \ to / for consistency
     VAULT_PATH=$(echo $VAULT_PATH | sed 's/\\/\//g')
     
-    cp vault-mind.yaml.example vault-mind.yaml
+    if [ ! -f "vault-mind.example.yaml" ]; then
+        echo "Error: vault-mind.example.yaml not found -- corrupt checkout?"
+        exit 1
+    fi
+    cp vault-mind.example.yaml vault-mind.yaml
     # Use python to replace vault_path safely
     $PYTHON_CMD -c "
 import sys
 content = open('vault-mind.yaml').read()
-content = content.replace('/path/to/your/vault', sys.argv[1])
+content = content.replace('/absolute/path/to/your/obsidian/vault', sys.argv[1])
 open('vault-mind.yaml', 'w').write(content)
 " "$VAULT_PATH"
     echo "  [OK] vault-mind.yaml created."
@@ -118,54 +122,57 @@ for line in open('vault-mind.yaml'):
     echo "  [SKIP] vault-mind.yaml already exists (vault: $VAULT_PATH)."
 fi
 
-# 5. MCP Registration (Claude Code)
-echo "Registering MCP server in Claude Code settings..."
-SETTINGS_PATH="$HOME/.claude/settings.json"
-if [ ! -f "$SETTINGS_PATH" ]; then
-    # Try Windows path if $HOME fails in some environments
-    SETTINGS_PATH="$USERPROFILE/.claude/settings.json"
+# 5. MCP Registration (Claude Code, user scope)
+# Claude Code stores user-scope MCP servers in ~/.claude.json (NOT ~/.claude/settings.json).
+# Project-scope servers live in <project>/.mcp.json -- that file is already committed and
+# activates automatically when Claude Code is opened in this directory.
+echo "Registering MCP server in Claude Code user-scope config..."
+CLAUDE_JSON="$HOME/.claude.json"
+if [ ! -f "$CLAUDE_JSON" ] && [ -n "${USERPROFILE:-}" ]; then
+    # Windows fallback when $HOME is not msys-mapped
+    CLAUDE_JSON="$USERPROFILE/.claude.json"
 fi
 
-if [ -f "$SETTINGS_PATH" ] || [ -d "$(dirname "$SETTINGS_PATH")" ]; then
+if [ -f "$CLAUDE_JSON" ]; then
     PROJECT_ROOT=$(pwd)
-    # Convert to absolute path if relative
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
         PROJECT_ROOT=$(cygpath -w "$PROJECT_ROOT" 2>/dev/null || echo "$PROJECT_ROOT")
+        # Normalize backslashes for JSON
+        PROJECT_ROOT=$(echo "$PROJECT_ROOT" | sed 's|\\|/|g')
     fi
-    
+
     $PYTHON_CMD -c "
-import json, os, sys
+import json, os, shutil, datetime, sys
 path = sys.argv[1]
 root = sys.argv[2]
 vault_path = sys.argv[3]
 
-if os.path.exists(path):
-    with open(path, 'r') as f:
-        try:
-            data = json.load(f)
-        except:
-            data = {}
-else:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    data = {}
+# Backup before touching
+backup = path + '.bak-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+shutil.copy2(path, backup)
 
-if 'mcpServers' not in data:
-    data['mcpServers'] = {}
+with open(path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
 
-data['mcpServers']['vault-mind'] = {
+mcps = data.setdefault('mcpServers', {})
+mcps['vault-mind'] = {
+    'type': 'stdio',
     'command': 'node',
-    'args': [os.path.join(root, 'mcp-server', 'dist', 'index.js')],
+    'args': [os.path.join(root, 'mcp-server', 'dist', 'index.js').replace('\\\\', '/')],
     'env': {
-        'VAULT_MIND_VAULT_PATH': vault_path
-    }
+        'VAULT_MIND_VAULT_PATH': vault_path,
+    },
 }
 
-with open(path, 'w') as f:
-    json.dump(data, f, indent=2)
-" "$SETTINGS_PATH" "$PROJECT_ROOT" "$VAULT_PATH"
-    echo "  [OK] Registered to $SETTINGS_PATH"
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+
+print(f'  [OK] Registered vault-mind in {path}')
+print(f'  [OK] Backup saved to {os.path.basename(backup)}')
+" "$CLAUDE_JSON" "$PROJECT_ROOT" "$VAULT_PATH"
 else
-    echo "  [WARN] Could not find Claude Code settings. Manual registration required."
+    echo "  [WARN] $CLAUDE_JSON not found -- Claude Code may not be installed."
+    echo "  [WARN] Project-scope MCP (.mcp.json) is still active when you open this repo in Claude Code."
 fi
 
 # 6. Skill Registration

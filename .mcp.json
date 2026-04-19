@@ -4,14 +4,6 @@
       "type": "stdio",
       "command": "node",
       "args": ["mcp-server/dist/index.js"],
-      "cwd": "D:/projects/obsidian-llm-wiki",
-      "env": {}
-    },
-    "vault-mind-connector": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["mcp-server/dist/connector/connector.js", "E:/knowledge"],
-      "cwd": "D:/projects/obsidian-llm-wiki",
       "env": {}
     }
   }

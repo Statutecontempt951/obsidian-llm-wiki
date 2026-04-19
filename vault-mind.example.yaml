@@ -1,0 +1,41 @@
+# obsidian-llm-wiki -- runtime configuration example
+#
+# Copy this file to `vault-mind.yaml` (git-ignored) and edit paths/flags
+# for your machine. Or skip the yaml entirely and set
+# VAULT_MIND_VAULT_PATH env var.
+#
+# Parser note: the server uses a minimal flat-line YAML parser. Keep
+# `vault_path:` at indent 0 -- nested `vault_path` will not be picked up.
+
+vault_path: "/absolute/path/to/your/obsidian/vault"
+
+# Optional: bearer token required on tool calls (leave empty to disable).
+# auth_token: "some-secret"
+
+# Optional: restrict which adapters to load. Default (commented) loads all:
+# filesystem, memu, gitnexus, obsidian, vaultbrain.
+# adapters: "filesystem,vaultbrain"
+
+# Optional: per-adapter ranking weight for unified search.
+# adapter_weight_filesystem: 1.0
+# adapter_weight_vaultbrain: 0.8
+# adapter_weight_memu: 0.6
+
+adapters:
+  filesystem:
+    enabled: true
+  obsidian:
+    enabled: false       # set true if Obsidian is running with the WS bridge
+  memu:
+    enabled: false       # requires memU PostgreSQL + Python venv
+  gitnexus:
+    enabled: false       # requires gitnexus CLI on PATH
+
+compiler:
+  model_tier: "haiku"
+  chunk_size: 1000
+  chunk_overlap: 200
+  auto_compile_threshold: 3
+
+agent:
+  enabled: false
