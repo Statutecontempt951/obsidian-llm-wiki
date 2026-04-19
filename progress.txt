@@ -219,8 +219,60 @@ All awaiting activation (need credentials). X needs X_BEARER_TOKEN.
 - main/master branch strategy decision
 - Optionally push Gitea mirror
 
+## 2026-04-18 -- frontmatter_generator CLI (authored, not committed in that session)
+
+### What done (retroactive record, session ended without DoD)
+
+- `compiler/frontmatter_generator.py` (33KB, 5 subcommands)
+  - `vocab`: scan vault, compute general tag pool -> general_tags.txt
+  - `generate`: LLM-batch generate FM previews for files missing frontmatter
+  - `apply`: atomic prepend + git commit the previews
+  - `retry`: regenerate minimum-only FM with wider context + folder/filename hints
+  - `audit`: scan existing FM, report non-canonical status/type + missing concepts
+  - Zero-dep (stdlib + curl subprocess), ThreadPoolExecutor concurrency, ${ENV_VAR} substitution
+- `compiler/fm_config.example.json`: template (anthropic/qwen/doubao/minimax presets,
+  canonical status/type lists, folder_type_map, status_rules, tag_blacklist)
+- `.gitignore`: add `compiler/fm_config.local.json` + `compiler/fm_work/` + `fm_work/`
+
+## 2026-04-19 -- Roadmap planning session (this session)
+
+### Context
+
+- Competitive landscape scan triggered by Garry Tan's gbrain launch (2026-04-10, 24h
+  5400 stars) + Karpathy LLM Wiki gist (2026-04) with 6+ community forks appearing
+- Realization: gbrain is NOT a direct competitor (Postgres+pgvector heavy,
+  Obsidian-agnostic). Real risk is isolation -- v1.0 at 5 stars/3 forks for 11 days
+  with zero outside issues/PRs and no Curry daily dogfood loop
+- Karpathy gist explicitly says "no embeddings at small scale" -- obsidian-llm-wiki's
+  filesystem+grep path is the original orthodoxy. Position = "Karpathy LLM Wiki
+  reference implementation, Obsidian-native, no Postgres"
+
+### What done
+
+- Full 12-week roadmap written to
+  `C:/Users/Administrator/.claude/plans/breezy-stargazing-chipmunk.md`
+- Four strategic tracks defined:
+  - Track A: Dogfood (daily + weekly hooks, .dogfood.log)
+  - Track B: Positioning (Karpathy reference impl, SEO, outreach drafts)
+  - Track C: Compiler (link_discovery, concept_graph, topic_cluster -- make the
+    architecture diagram real)
+  - Track D: Collector activation (Gmail first, then 2 more)
+- Phase 0 executed in this session:
+  - Deleted stray `nul` file (7815B, bash redirect accident)
+  - Committed frontmatter_generator + config example + .gitignore
+  - This progress.txt update
+
+### Outstanding (Week 1 remainder)
+
+- README rewrite (Karpathy hero, gbrain/qmd comparison)
+- package.json + GitHub topics SEO
+- .outreach/{karpathy-gist-comment,x-thread,show-hn-draft}.md
+- .dogfood.log init + scripts/dogfood-log.sh
+- main/master branch decision (unchanged, still deferred)
+- Optionally push Gitea mirror
+
 ## Next step
 
-- Collector suite is now complete (10 sources). Activate as credentials become available.
-- Consider: Notion (API key, no OAuth) or Google Calendar (reuses Gmail OAuth creds)
-- Or: main/master branch clarification + Gitea mirror push
+- Execute Phase B1-B5 + A0 (README, SEO, outreach drafts, dogfood log)
+- Roadmap file: C:/Users/Administrator/.claude/plans/breezy-stargazing-chipmunk.md
+- After Week 1: Track C Compiler work (link_discovery + concept_graph)
