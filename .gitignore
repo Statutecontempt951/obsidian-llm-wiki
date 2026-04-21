@@ -43,3 +43,6 @@ mcp-server/smoke.err
 
 # link_discovery output (per-dev, regenerate with compiler/link_discovery.py)
 .compile/
+
+# Local planning / GSD artifacts (per-dev, not part of shipped product)
+.planning/

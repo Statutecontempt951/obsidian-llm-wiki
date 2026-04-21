@@ -64,10 +64,10 @@ Claude Code ─stdio→ MCP Server ─┬─ vault.* (CRUD + search + graph)
 cd mcp-server && npm run dev
 
 # KB 编译 (Python)
-python compiler/compile.py E:/knowledge/KB/brillm --tier haiku
+python compiler/compile.py <path-to-vault>/KB/<topic> --tier haiku
 
 # kb_meta CLI
-python compiler/kb_meta.py diff E:/knowledge KB/brillm
+python compiler/kb_meta.py diff <path-to-vault> KB/<topic>
 ```
 
 ## Test
