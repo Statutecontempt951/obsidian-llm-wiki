@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" role="img" aria-label="LLM Wiki Bridge banner">
+  <title>LLM Wiki Bridge</title>
+  <desc>Your markdown vault, compiled into a 6-persona MCP team. Cites, doesn't guess.</desc>
+
+  <rect width="1200" height="280" fill="#F5F4F0"/>
+  <line x1="0" y1="279" x2="1200" y2="279" stroke="#E0E0DA" stroke-width="1"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
+    <text x="60" y="108" font-size="48" font-weight="600" fill="#1a1a1a" letter-spacing="-1.4">LLM Wiki Bridge</text>
+    <text x="60" y="150" font-size="19" fill="#5a5a5a" letter-spacing="-0.2">Your markdown vault, compiled into a</text>
+    <text x="60" y="178" font-size="19" fill="#5a5a5a" letter-spacing="-0.2">6-persona MCP team. Cites, doesn't guess.</text>
+    <rect x="60" y="204" width="72" height="3" fill="#D97757"/>
+    <text x="60" y="240" font-size="12" fill="#8a8a8a" letter-spacing="0.3">headless-first · Claude Code · Codex · OpenCode · Gemini CLI</text>
+  </g>
+
+  <g transform="translate(720, 40)">
+    <g stroke="#E0E0DA" stroke-width="1.5" fill="none">
+      <line x1="60"  y1="60"  x2="180" y2="30"/>
+      <line x1="180" y1="30"  x2="300" y2="80"/>
+      <line x1="60"  y1="60"  x2="120" y2="160"/>
+      <line x1="240" y1="150" x2="300" y2="80"/>
+      <line x1="240" y1="150" x2="380" y2="180"/>
+    </g>
+    <line x1="120" y1="160" x2="240" y2="150" stroke="#D97757" stroke-width="2.2"/>
+
+    <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif" font-size="11" fill="#1a1a1a">
+      <rect x="30"  y="40"  width="60" height="40" rx="2" fill="#ffffff" stroke="#E0E0DA"/>
+      <text x="60"  y="64"  text-anchor="middle">[[RAG]]</text>
+
+      <rect x="150" y="10"  width="60" height="40" rx="2" fill="#ffffff" stroke="#E0E0DA"/>
+      <text x="180" y="34"  text-anchor="middle">[[LLM]]</text>
+
+      <rect x="270" y="60"  width="60" height="40" rx="2" fill="#ffffff" stroke="#E0E0DA"/>
+      <text x="300" y="84"  text-anchor="middle">[[attn]]</text>
+
+      <rect x="210" y="130" width="60" height="40" rx="2" fill="#D97757" stroke="#D97757"/>
+      <text x="240" y="154" text-anchor="middle" fill="#ffffff">[[vectors]]</text>
+
+      <rect x="90"  y="140" width="60" height="40" rx="2" fill="#ffffff" stroke="#E0E0DA"/>
+      <text x="120" y="164" text-anchor="middle">[[Karpathy]]</text>
+
+      <rect x="350" y="160" width="60" height="40" rx="2" fill="#ffffff" stroke="#E0E0DA"/>
+      <text x="380" y="184" text-anchor="middle">[[memU]]</text>
+    </g>
+
+    <text x="220" y="230" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif" font-size="11" fill="#8a8a8a" text-anchor="middle" letter-spacing="0.8">vault — concept graph — agent</text>
+  </g>
+</svg>
