@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="LLM Wiki Bridge — 把你的 markdown vault 编译成 6 人 MCP 团队" width="100%">
+  <img src="../assets/banner.svg" alt="LLM Wiki Bridge — 把你的 markdown vault 编译成 6 人 MCP 团队" width="100%">
 </p>
 
 # LLM Wiki Bridge
 
 **把你的 markdown 笔记库编译成 6 人 MCP 虚拟团队，给 Claude Code / Codex / OpenCode / Gemini CLI 使用。Headless first。引用，不瞎编。**
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-stdio-orange.svg)](https://modelcontextprotocol.io)
 [![Wiki](https://img.shields.io/badge/wiki-deep_dives-D97757.svg)](https://github.com/2233admin/obsidian-llm-wiki/wiki)
 
-**语言**：[English](README.md) · 简体中文（本页） — **指南**：[English](docs/GUIDE.md) · [简体中文](docs/GUIDE.zh-CN.md) — **Wiki**：[首页](https://github.com/2233admin/obsidian-llm-wiki/wiki) · [架构](https://github.com/2233admin/obsidian-llm-wiki/wiki/Architecture) · [立场](https://github.com/2233admin/obsidian-llm-wiki/wiki/Rationale) · [FAQ](https://github.com/2233admin/obsidian-llm-wiki/wiki/FAQ)
+**语言**：[English](../../README.md) · 简体中文（本页） — **指南**：[English](../GUIDE.md) · [简体中文](../GUIDE.zh-CN.md) — **Wiki**：[首页](https://github.com/2233admin/obsidian-llm-wiki/wiki) · [架构](https://github.com/2233admin/obsidian-llm-wiki/wiki/Architecture) · [立场](https://github.com/2233admin/obsidian-llm-wiki/wiki/Rationale) · [FAQ](https://github.com/2233admin/obsidian-llm-wiki/wiki/FAQ)
 
-![demo](docs/gif/demo.gif)
+![demo](../gif/demo.gif)
 
 你 vault 里堆了 500 条笔记。一半你已经忘了。你的 AI agent 读不到它们——它只在上下文窗口里拼凑，顺手编造引用。你每天早上花 20 分钟重新翻找自己已经写过的东西。
 
@@ -129,7 +129,7 @@ Wiki 是长文答案的所在。以下 8 页是复利资产——任意顺序阅
 
 ## 详细安装（30 秒 quick-start 跑不通时）
 
-见 [docs/INSTALL.md](docs/INSTALL.md)。
+见 [INSTALL.md](../INSTALL.md)。
 
 ---
 
