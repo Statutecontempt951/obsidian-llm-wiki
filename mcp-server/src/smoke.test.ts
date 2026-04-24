@@ -94,6 +94,20 @@ test('tools/list includes query.vector (pgvector semantic search)', async () => 
   assert.ok(names.has('query.vector'), 'query.vector tool must be registered');
 });
 
+test('tools/list includes query.semantic (text -> embed -> vector search)', async () => {
+  const res = await client.listTools();
+  const names = new Set(res.tools.map((t) => t.name));
+  assert.ok(names.has('query.semantic'), 'query.semantic tool must be registered');
+});
+
+test('tools/call query.semantic rejects empty query string', async () => {
+  const res = await client.callTool({
+    name: 'query.semantic',
+    arguments: { query: '' },
+  });
+  assert.ok(res.isError, 'empty query must produce an error response');
+});
+
 test('tools/call query.vector rejects empty vector with -32602', async () => {
   const res = await client.callTool({
     name: 'query.vector',

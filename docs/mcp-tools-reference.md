@@ -3,7 +3,7 @@
 > Auto-generated from `mcp-server/src/core/operations.ts`.
 > Run `npm run generate-tools-doc` to regenerate. Do not edit by hand.
 
-Total: **41** operations across **5** namespaces.
+Total: **42** operations across **5** namespaces.
 
 ## `vault.*` (23)
 
@@ -267,7 +267,7 @@ Write a persona-authored analysis into 00-Inbox/AI-Output/{persona}/YYYY-MM-DD-{
 - `reviewStatus` (string, optional, default: `"none"`, enum: `none` | `user-confirmed`) — When user-confirmed, appends #user-confirmed tag to the body so Obsidian tag search picks it up. Default: none (no tag appended).
 - `dryRun` (boolean, optional, default: `true`) — Simulate without writing (default: true)
 
-## `query.*` (5)
+## `query.*` (6)
 
 ### `query.adapters`
 
@@ -298,6 +298,19 @@ Filesystem-only ranked knowledge search. Same scoring pipeline as query.unified 
 - `query` (string, required) — Search query string
 - `maxResults` (number, optional, default: `50`) — Maximum results to return (default: 50)
 
+### `query.semantic`
+
+Text-input semantic search. Embeds the query via an OpenAI-compatible embedding endpoint (default: ollama qwen3-embedding:0.6b at localhost:11434 -- the same model that produced memU's stored 1024-dim vectors), then fans out to all embeddings-capable adapters (currently memu, pgvector cosine). Use this for natural-language queries that should match by meaning rather than keyword. Override endpoint/model via VAULT_MIND_EMBED_URL and VAULT_MIND_EMBED_MODEL env. For pre-computed vectors use query.vector; for keyword matching use query.unified.
+
+**Mutating:** no
+
+**Parameters:**
+
+- `query` (string, required) — Natural-language text to embed and semantic-search
+- `maxResults` (number, optional, default: `50`) — Maximum results to return (default: 50)
+- `adapters` (array, optional) — Limit to specific embedding-capable adapters by name
+- `weights` (object, optional) — Per-adapter score weight multipliers
+
 ### `query.unified`
 
 Weighted multi-adapter search across all active adapters (filesystem, obsidian, memu, gitnexus). Results merged and re-ranked by per-adapter weight. Use when you want best answers anywhere; for single-adapter search use query.search (filesystem-only, ranked) or vault.search (raw filesystem grep, unranked).
@@ -315,7 +328,7 @@ Weighted multi-adapter search across all active adapters (filesystem, obsidian, 
 
 ### `query.vector`
 
-Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter's stored vector space (memu: 1024-dim). Use for vector-similarity ranking; use query.unified for text-ILIKE fusion across all adapters.
+Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter's stored vector space (memu: 1024-dim). Use for vector-similarity ranking when you already have an embedding; for text-input semantic search use query.semantic; for keyword fusion use query.unified.
 
 **Mutating:** no
 

@@ -31214,6 +31214,46 @@ async function unifiedQueryByVector(registry2, vector, opts) {
   };
 }
 
+// dist/embedding-client.js
+var DEFAULT_URL = "http://localhost:11434/v1/embeddings";
+var DEFAULT_MODEL = "qwen3-embedding:0.6b";
+var DEFAULT_TIMEOUT_MS = 15e3;
+async function embed(text, opts) {
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error("embed: empty text");
+  }
+  const url2 = opts?.url ?? process.env.VAULT_MIND_EMBED_URL ?? DEFAULT_URL;
+  const model = opts?.model ?? process.env.VAULT_MIND_EMBED_MODEL ?? DEFAULT_MODEL;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url2, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ input: text, model }),
+      signal: ctrl.signal
+    });
+    if (!res.ok) {
+      const body2 = await res.text().catch(() => "");
+      throw new Error(`embed: HTTP ${res.status} ${body2.slice(0, 200)}`);
+    }
+    const body = await res.json();
+    const vec = body.data?.[0]?.embedding;
+    if (!Array.isArray(vec) || vec.length === 0) {
+      throw new Error("embed: response missing data[0].embedding");
+    }
+    return vec;
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      throw new Error(`embed: timeout after ${timeoutMs}ms`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // dist/core/operations.js
 var execAsync = promisify4(execFile4);
 var PROTECTED_DIRS = /* @__PURE__ */ new Set([".obsidian", ".trash", ".git", "node_modules"]);
@@ -31756,9 +31796,38 @@ function makeAllOperations(deps) {
       }
     },
     {
+      name: "query.semantic",
+      namespace: "query",
+      description: "Text-input semantic search. Embeds the query via an OpenAI-compatible embedding endpoint (default: ollama qwen3-embedding:0.6b at localhost:11434 -- the same model that produced memU's stored 1024-dim vectors), then fans out to all embeddings-capable adapters (currently memu, pgvector cosine). Use this for natural-language queries that should match by meaning rather than keyword. Override endpoint/model via VAULT_MIND_EMBED_URL and VAULT_MIND_EMBED_MODEL env. For pre-computed vectors use query.vector; for keyword matching use query.unified.",
+      mutating: false,
+      params: {
+        query: { type: "string", required: true, description: "Natural-language text to embed and semantic-search" },
+        maxResults: { type: "number", required: false, description: "Maximum results to return (default: 50)", default: 50 },
+        adapters: { type: "array", required: false, description: "Limit to specific embedding-capable adapters by name" },
+        weights: { type: "object", required: false, description: "Per-adapter score weight multipliers" }
+      },
+      handler: async (_ctx, params) => {
+        const query = params.query;
+        if (typeof query !== "string" || query.length === 0) {
+          throw makeErr(-32602, "query required (non-empty string)");
+        }
+        let vector;
+        try {
+          vector = await embed(query);
+        } catch (e) {
+          throw makeErr(-32603, `embedding failed: ${e.message}`);
+        }
+        return unifiedQueryByVector(registry2, vector, {
+          maxResults: params.maxResults ?? 50,
+          adapters: params.adapters,
+          weights: params.weights
+        });
+      }
+    },
+    {
       name: "query.vector",
       namespace: "query",
-      description: `Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter's stored vector space (memu: 1024-dim). Use for vector-similarity ranking; use query.unified for text-ILIKE fusion across all adapters.`,
+      description: `Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter's stored vector space (memu: 1024-dim). Use for vector-similarity ranking when you already have an embedding; for text-input semantic search use query.semantic; for keyword fusion use query.unified.`,
       mutating: false,
       params: {
         vector: { type: "array", required: true, description: "Pre-computed query embedding as number[] (memu expects 1024-dim)" },

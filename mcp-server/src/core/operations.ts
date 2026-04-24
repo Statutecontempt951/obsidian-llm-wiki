@@ -7,6 +7,7 @@ import type { Operation } from './types.js';
 import { scanRecipes, findRecipe } from '../recipes/_registry.js';
 import { getRecipeStatus, runHealthCheck, appendHeartbeat } from '../recipes/_framework.js';
 import { unifiedQuery, unifiedQueryByVector } from '../unified-query.js';
+import { embed } from '../embedding-client.js';
 import type { AdapterRegistry } from '../adapters/registry.js';
 import type { VaultBrainAdapter } from '../adapters/vaultbrain/index.js';
 import type { CompileTrigger } from '../compile-trigger.js';
@@ -566,9 +567,38 @@ export function makeAllOperations(deps: AllOperationsDeps): Operation[] {
       },
     },
     {
+      name: 'query.semantic',
+      namespace: 'query',
+      description: 'Text-input semantic search. Embeds the query via an OpenAI-compatible embedding endpoint (default: ollama qwen3-embedding:0.6b at localhost:11434 -- the same model that produced memU\'s stored 1024-dim vectors), then fans out to all embeddings-capable adapters (currently memu, pgvector cosine). Use this for natural-language queries that should match by meaning rather than keyword. Override endpoint/model via VAULT_MIND_EMBED_URL and VAULT_MIND_EMBED_MODEL env. For pre-computed vectors use query.vector; for keyword matching use query.unified.',
+      mutating: false,
+      params: {
+        query: { type: 'string', required: true, description: 'Natural-language text to embed and semantic-search' },
+        maxResults: { type: 'number', required: false, description: 'Maximum results to return (default: 50)', default: 50 },
+        adapters: { type: 'array', required: false, description: 'Limit to specific embedding-capable adapters by name' },
+        weights: { type: 'object', required: false, description: 'Per-adapter score weight multipliers' },
+      },
+      handler: async (_ctx, params) => {
+        const query = params.query as string;
+        if (typeof query !== 'string' || query.length === 0) {
+          throw makeErr(-32602, 'query required (non-empty string)');
+        }
+        let vector: number[];
+        try {
+          vector = await embed(query);
+        } catch (e) {
+          throw makeErr(-32603, `embedding failed: ${(e as Error).message}`);
+        }
+        return unifiedQueryByVector(registry, vector, {
+          maxResults: (params.maxResults as number) ?? 50,
+          adapters: params.adapters as string[] | undefined,
+          weights: params.weights as Record<string, number> | undefined,
+        });
+      },
+    },
+    {
       name: 'query.vector',
       namespace: 'query',
-      description: 'Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter\'s stored vector space (memu: 1024-dim). Use for vector-similarity ranking; use query.unified for text-ILIKE fusion across all adapters.',
+      description: 'Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter\'s stored vector space (memu: 1024-dim). Use for vector-similarity ranking when you already have an embedding; for text-input semantic search use query.semantic; for keyword fusion use query.unified.',
       mutating: false,
       params: {
         vector: { type: 'array', required: true, description: 'Pre-computed query embedding as number[] (memu expects 1024-dim)' },
