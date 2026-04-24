@@ -1973,3 +1973,110 @@ in one session. Pick one, ship it, repeat.
    huashu-design README raw) to understand the pattern being
    referenced.
 4. Otherwise go straight to execution on the chosen item.
+
+---
+
+## Session 8 addendum -- memu adapter reactivate (2026-04-24, late)
+
+Session 7 backlog (GEO/i18n/design/wiki) was NOT picked this session.
+Curry routed sideways to memu-reactivate work that started earlier the
+same day on branch `fix/memu-adapter-reactivate`.
+
+### What shipped (2 commits, now on main + both remotes)
+
+- `21364a3 fix(memu-adapter): switch to direct PG backend`
+  - Rewrites `mcp-server/src/adapters/memu.ts` from dead Python-subprocess
+    path (`from memu.app.retrieve import retrieve` -- function never
+    existed upstream) to direct pg npm ILIKE over `memory_items.summary`
+  - Adds `pg` + `@types/pg` deps, rebuilds bundle.js
+  - Env contract: MEMU_DSN (default postgres:postgres@localhost:5432/memu),
+    MEMU_USER_ID (default boris)
+  - Fail-open: PG unreachable -> adapter.available=false, returns [] on
+    query (no throw)
+  - pgvector skipped: 1024-dim embeddings present but producer model
+    unknown, ILIKE is neutral placeholder
+
+- `8df2037 feat(cli): add memu-query CLI for direct bundle JSON-RPC access`
+  - New `mcp-server/src/scripts/memu-query.ts` speaks JSON-RPC directly
+    to bundle.js over stdio, bypassing Claude Code MCP client cache
+  - Exposed as `npx memu-query` bin in package.json
+  - Exit codes: 0 found / 1 error / 2 empty / 3 timeout
+  - Flags: --max N, --source memu|all, --json|--pretty, --debug
+
+### Cold-verify evidence (session 8, pre-merge)
+
+Bundle smoke via PowerShell (bash profile had stdin-tty breakage today):
+  $env:VAULT_MIND_VAULT_PATH="E:/knowledge"
+  node dist/scripts/memu-query.js "obsidian" --source memu --max 5 --pretty
+
+Observed:
+  - Banner: `MCP server running (stdio, v0.3.0, adapters: filesystem,
+    memu, vaultbrain)` -- memu listed as active third adapter
+  - 2 real PG rows returned for query="obsidian", source=memu only
+  - Path shape: `memu/boris/event/<uuid>` matches adapter template
+  - EXIT=0 (found >= 1)
+  - gitnexus/obsidian/qmd adapters show [warn] disabled as expected in
+    this shell (no CLI / no WS / no qmd) -- not blocking
+
+### Merge + push
+
+- `git checkout main && git merge --ff-only fix/memu-adapter-reactivate`
+  -> fast-forward 39d02ac..8df2037 (5 files, 5608 insertions, 167 dels)
+- `git push gitea main` -> 39d02ac..8df2037 OK
+- `git push origin main` (GitHub 2233admin/obsidian-llm-wiki) ->
+  39d02ac..8df2037 OK
+- Branch `fix/memu-adapter-reactivate` left alive both local + gitea
+  (not deleted -- keeps the PR-shaped history legible if anyone
+  bisects the adapter revival later)
+
+### Privacy check before origin push
+
+- git log author = `2233admin <2233admin@users.noreply.github.com>`
+  (GitHub noreply, safe for public)
+- No hardcoded DSNs with real creds (default is postgres:postgres
+  localhost, which is the dev convention, documented as env-override)
+- `boris` user_id is memU NevaMind public convention, not PII
+
+### Honest gap list (Phase 1 shipped, NOT production-hardened)
+
+P2 -- nice-to-have, won't block anyone:
+- **No memu.test.ts** -- vaultbrain has a test file, memu does not. Next
+  schema drift in upstream memU silently breaks ILIKE. Add a minimal
+  test that asserts adapter returns shape + scope filter.
+- **Query latency unmeasured** -- 3773 rows x ~6262 chars/row = ~23MB
+  sequential ILIKE per query. Expected 80-300ms on localhost PG, never
+  actually timed. No pg_trgm GIN index.
+- **docs/adapters/memu.md missing** -- README only mentions filesystem
+  + vaultbrain. memu is a silent third citizen; users can't discover
+  it without reading the banner. 10-minute write when design clears.
+
+P3 -- deeper debt:
+- **Embedding provenance hole** -- `memory_items.embedding` has 1024-dim
+  vectors filled, but the producer model is not recorded anywhere we
+  can find. Candidates: Nomic, E5-large, BGE-large, OpenAI 3-small.
+  Pgvector cosine retrieval is blocked on this.
+- **Schema pin missing** -- adapter reads upstream memU's `memory_items`
+  schema. They ship active dev; column rename = silent 0 results.
+  No version pin, no schema probe on init beyond COUNT(*).
+- **Branch naming drift** -- `fix/` prefix is wrong; both commits are
+  feat-grade (revive dead adapter + new CLI). History already pushed,
+  so don't rewrite, but remember next time.
+
+### What this session explicitly did NOT do
+
+- Session 7 backlog (GEO, multi-lang README, design, wiki) untouched.
+  Still the right next thing -- this addendum does not replace it.
+- No version tag cut (v2.0.1 candidate). Deferred; memu adapter is a
+  material new capability but we want a CHANGELOG pass first.
+- No PR workflow -- branch was local + gitea, pushed straight to main
+  after cold-verify. Acceptable for solo repo, not for multi-reviewer.
+
+### Next step (session 9 opener)
+
+Pick one of:
+- **Session 7 original backlog** (GEO, multi-lang README, design, wiki)
+  -- unchanged priority
+- **memu Phase 2** -- address the P2 gaps above (test + perf baseline +
+  adapter doc), then maybe tag v2.1.0
+- **pgvector investigation** -- dig into memU repo / pipeline configs
+  to recover the embedding model name, then spec Phase 3
