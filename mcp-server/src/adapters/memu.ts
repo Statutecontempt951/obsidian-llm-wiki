@@ -1,15 +1,22 @@
 /**
- * adapter-memu -- bridges to memU's Python retrieve API via subprocess.
+ * adapter-memu -- reads memU's Postgres backing store directly.
  *
- * Reuses memU's full retrieval pipeline (graph PPR + vector cosine + text)
- * rather than reimplementing PG queries in Node.js.
+ * memU's Python surface (MemuService / RetrieveMixin) is an internal workflow
+ * orchestrator (async, LLM-gated, heavy config). Bridging it from Node via
+ * subprocess is cold-start-per-call and hallucination-prone -- the prior
+ * `from memu.app.retrieve import retrieve` assumption was never a public API.
  *
- * Requires: memU installed (`pip install -e .` in memU repo), PG running.
- * Gracefully returns [] if memU is unavailable.
+ * This adapter instead connects to the same Postgres the memU pipeline writes
+ * into and serves `summary` text matches. Semantic search via the existing
+ * pgvector embedding column is left for a follow-up (requires knowing which
+ * embedding model produced the stored 1024-dim vectors).
+ *
+ * Requires: Postgres reachable via MEMU_DSN (default localhost:5432/memu),
+ * `memory_items` table populated.
+ * Gracefully returns [] if the DB is unavailable.
  */
 
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import pg from "pg";
 import type {
   VaultMindAdapter,
   AdapterCapability,
@@ -17,98 +24,129 @@ import type {
   SearchOpts,
 } from "./interface.js";
 
-const exec = promisify(execFile);
+const { Pool } = pg;
 
 export interface MemUAdapterConfig {
-  /** Python executable (default: "python") */
-  python?: string;
-  /** memU user_id (default: "boris") */
+  /** Postgres DSN (default: env MEMU_DSN or localhost:5432/memu) */
+  dsn?: string;
+  /** user_id scope filter (default: env MEMU_USER_ID or "boris") */
   userId?: string;
   /** Maximum results per query (default: 20) */
   maxResults?: number;
-  /** Timeout in ms (default: 10000) */
+  /** Query timeout in ms (default: 5000) */
   timeout?: number;
 }
+
+const DEFAULT_DSN = "postgresql://postgres:postgres@localhost:5432/memu";
 
 export class MemUAdapter implements VaultMindAdapter {
   readonly name = "memu";
   readonly capabilities: readonly AdapterCapability[] = ["search"];
 
-  private readonly python: string;
+  private readonly dsn: string;
   private readonly userId: string;
   private readonly defaultMax: number;
   private readonly timeout: number;
+  private pool: pg.Pool | null = null;
   private available = false;
 
   get isAvailable(): boolean { return this.available; }
 
   constructor(config?: MemUAdapterConfig) {
-    this.python = config?.python ?? "python";
-    this.userId = config?.userId ?? "boris";
+    this.dsn = config?.dsn ?? process.env.MEMU_DSN ?? DEFAULT_DSN;
+    this.userId = config?.userId ?? process.env.MEMU_USER_ID ?? "boris";
     this.defaultMax = config?.maxResults ?? 20;
-    this.timeout = config?.timeout ?? 10_000;
+    this.timeout = config?.timeout ?? 5_000;
   }
 
   async init(): Promise<void> {
     try {
-      await exec(this.python, ["-c", "import memu"], { timeout: 5000 });
+      this.pool = new Pool({
+        connectionString: this.dsn,
+        max: 2,
+        connectionTimeoutMillis: 3_000,
+        statement_timeout: this.timeout,
+      });
+      // Probe: confirm table + scope has data. Zero rows is a soft warning,
+      // not a hard failure -- the DB might be fresh.
+      const { rows } = await this.pool.query(
+        "SELECT COUNT(*)::int AS n FROM memory_items WHERE user_id = $1",
+        [this.userId],
+      );
+      const n = (rows[0]?.n as number) ?? 0;
+      if (n === 0) {
+        process.stderr.write(
+          `obsidian-llm-wiki: [warn] memU PG reachable but 0 items for user_id=${this.userId}\n`,
+        );
+      }
       this.available = true;
-    } catch {
-      process.stderr.write("vault-mind: [warn] memU not importable, adapter disabled\n");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `obsidian-llm-wiki: [warn] memU PG unavailable (${msg}), adapter disabled\n`,
+      );
+      this.available = false;
+      if (this.pool) {
+        await this.pool.end().catch(() => {});
+        this.pool = null;
+      }
     }
   }
 
-  async dispose(): Promise<void> {}
+  async dispose(): Promise<void> {
+    if (this.pool) {
+      await this.pool.end().catch(() => {});
+      this.pool = null;
+    }
+  }
 
   async search(query: string, opts?: SearchOpts): Promise<SearchResult[]> {
-    if (!this.available) return [];
-    const limit = opts?.maxResults ?? this.defaultMax;
-
-    // Query passed via sys.argv to avoid injection
-    const script = `
-import json, sys
-try:
-    from memu.app.retrieve import retrieve
-    query = sys.argv[1]
-    user_id = sys.argv[2]
-    top_k = int(sys.argv[3])
-    results = retrieve(query=query, user_id=user_id, top_k=top_k)
-    items = []
-    for r in results:
-        items.append({
-            "path": r.get("key", r.get("id", "unknown")),
-            "content": r.get("content", r.get("text", ""))[:500],
-            "score": float(r.get("score", r.get("relevance", 0.5))),
-            "metadata": {"category": r.get("category", ""), "item_id": r.get("id", "")}
-        })
-    print(json.dumps(items))
-except Exception as e:
-    print(json.dumps([]), file=sys.stdout)
-    print(f"memU error: {e}", file=sys.stderr)
-`;
+    if (!this.available || !this.pool) return [];
+    const limit = Math.max(1, Math.min(opts?.maxResults ?? this.defaultMax, 100));
+    // Escape LIKE wildcards so user input like "50%" matches literally.
+    const escaped = query
+      .replace(/\\/g, "\\\\")
+      .replace(/%/g, "\\%")
+      .replace(/_/g, "\\_");
+    const pattern = `%${escaped}%`;
 
     try {
-      const { stdout } = await exec(
-        this.python,
-        ["-c", script, query, this.userId, String(limit)],
-        { timeout: this.timeout, maxBuffer: 5 * 1024 * 1024 },
+      const { rows } = await this.pool.query<{
+        id: string;
+        summary: string;
+        memory_type: string;
+        user_id: string;
+        created_at: Date;
+      }>(
+        `SELECT id, summary, memory_type, user_id, created_at
+         FROM memory_items
+         WHERE user_id = $1
+           AND summary ILIKE $2 ESCAPE '\\'
+         ORDER BY created_at DESC
+         LIMIT $3`,
+        [this.userId, pattern, limit],
       );
 
-      const items: Array<{
-        path: string;
-        content: string;
-        score: number;
-        metadata?: Record<string, unknown>;
-      }> = JSON.parse(stdout.trim() || "[]");
-
-      return items.map((item) => ({
+      return rows.map((r) => ({
         source: this.name,
-        path: item.path,
-        content: item.content,
-        score: item.score,
-        metadata: item.metadata,
+        path: `memu/${r.user_id}/${r.memory_type}/${r.id}`,
+        content: String(r.summary ?? "").slice(0, 500),
+        // Text-ILIKE has no intrinsic relevance score. 0.5 keeps memu neutral
+        // in the unified fusion layer; tune via adapter_weights if needed.
+        score: 0.5,
+        metadata: {
+          memory_type: r.memory_type,
+          user_id: r.user_id,
+          created_at:
+            r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          item_id: r.id,
+        },
       }));
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `obsidian-llm-wiki: [error] memU PG query failed: ${msg}\n`,
+      );
       return [];
     }
   }
