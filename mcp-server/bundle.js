@@ -29694,7 +29694,7 @@ var { Pool: Pool2 } = esm_default;
 var DEFAULT_DSN = "postgresql://postgres:postgres@localhost:5432/memu";
 var MemUAdapter = class {
   name = "memu";
-  capabilities = ["search"];
+  capabilities = ["search", "embeddings"];
   dsn;
   userId;
   defaultMax;
@@ -29774,6 +29774,43 @@ var MemUAdapter = class {
     } catch (err2) {
       const msg = err2 instanceof Error ? err2.message : String(err2);
       process.stderr.write(`obsidian-llm-wiki: [error] memU PG query failed: ${msg}
+`);
+      return [];
+    }
+  }
+  async searchByVector(vector, opts) {
+    if (!this.available || !this.pool)
+      return [];
+    if (vector.length === 0)
+      return [];
+    const limit = Math.max(1, Math.min(opts?.maxResults ?? this.defaultMax, 100));
+    const vecLiteral = `[${vector.join(",")}]`;
+    try {
+      const { rows } = await this.pool.query(`SELECT id, summary, memory_type, user_id, created_at,
+                (1 - (embedding <=> $2::vector))::float8 AS similarity
+         FROM memory_items
+         WHERE user_id = $1 AND embedding IS NOT NULL
+         ORDER BY embedding <=> $2::vector
+         LIMIT $3`, [this.userId, vecLiteral, limit]);
+      return rows.map((r) => ({
+        source: this.name,
+        path: `memu/${r.user_id}/${r.memory_type}/${r.id}`,
+        content: String(r.summary ?? "").slice(0, 500),
+        // Cosine similarity. For unit vectors this is in [-1, 1]; for
+        // unnormalised vectors it can exceed that range. Callers should
+        // rely on ordering (higher = closer), not absolute magnitude.
+        score: typeof r.similarity === "number" ? r.similarity : 0,
+        metadata: {
+          memory_type: r.memory_type,
+          user_id: r.user_id,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          item_id: r.id,
+          cosine_similarity: r.similarity
+        }
+      }));
+    } catch (err2) {
+      const msg = err2 instanceof Error ? err2.message : String(err2);
+      process.stderr.write(`obsidian-llm-wiki: [error] memU PG vector query failed: ${msg}
 `);
       return [];
     }
@@ -31133,6 +31170,49 @@ async function unifiedQuery(registry2, query, opts) {
     totalResults: merged.length
   };
 }
+async function unifiedQueryByVector(registry2, vector, opts) {
+  if (vector.length === 0) {
+    return { results: [], sources: {}, totalResults: 0 };
+  }
+  const vectorAdapters = registry2.getByCapability("embeddings").filter((a) => typeof a.searchByVector === "function");
+  const filtered = opts?.adapters ? vectorAdapters.filter((a) => opts.adapters.includes(a.name)) : vectorAdapters;
+  if (filtered.length === 0) {
+    return { results: [], sources: {}, totalResults: 0 };
+  }
+  const weights = opts?.weights ?? {};
+  const sources = {};
+  const totalMax = opts?.maxResults ?? 50;
+  const perAdapterMax = Math.ceil(totalMax * 1.5 / filtered.length);
+  const settled = await Promise.allSettled(filtered.map(async (adapter) => {
+    const start = Date.now();
+    try {
+      const results = await adapter.searchByVector(vector, {
+        maxResults: perAdapterMax
+      });
+      sources[adapter.name] = { count: results.length, latencyMs: Date.now() - start };
+      const w = weights[adapter.name] ?? 1;
+      return results.map((r) => ({ ...r, score: r.score * w, source: adapter.name }));
+    } catch (e) {
+      sources[adapter.name] = {
+        count: 0,
+        latencyMs: Date.now() - start,
+        error: e.message
+      };
+      return [];
+    }
+  }));
+  const merged = [];
+  for (const r of settled) {
+    if (r.status === "fulfilled")
+      merged.push(...r.value);
+  }
+  merged.sort((a, b) => b.score - a.score);
+  return {
+    results: merged.slice(0, totalMax),
+    sources,
+    totalResults: merged.length
+  };
+}
 
 // dist/core/operations.js
 var execAsync = promisify4(execFile4);
@@ -31672,6 +31752,35 @@ function makeAllOperations(deps) {
         return unifiedQuery(registry2, query, {
           maxResults: params.maxResults ?? 50,
           adapters: ["filesystem"]
+        });
+      }
+    },
+    {
+      name: "query.vector",
+      namespace: "query",
+      description: `Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter's stored vector space (memu: 1024-dim). Use for vector-similarity ranking; use query.unified for text-ILIKE fusion across all adapters.`,
+      mutating: false,
+      params: {
+        vector: { type: "array", required: true, description: "Pre-computed query embedding as number[] (memu expects 1024-dim)" },
+        maxResults: { type: "number", required: false, description: "Maximum results to return (default: 50)", default: 50 },
+        adapters: { type: "array", required: false, description: "Limit to specific embedding-capable adapters by name" },
+        weights: { type: "object", required: false, description: "Per-adapter score weight multipliers" }
+      },
+      handler: async (_ctx, params) => {
+        const vector = params.vector;
+        if (!Array.isArray(vector) || vector.length === 0) {
+          throw makeErr(-32602, "vector required (non-empty number[])");
+        }
+        const nums = vector;
+        for (const n of nums) {
+          if (typeof n !== "number" || !Number.isFinite(n)) {
+            throw makeErr(-32602, "vector must contain finite numbers only");
+          }
+        }
+        return unifiedQueryByVector(registry2, nums, {
+          maxResults: params.maxResults ?? 50,
+          adapters: params.adapters,
+          weights: params.weights
         });
       }
     },

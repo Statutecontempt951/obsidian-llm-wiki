@@ -3,7 +3,7 @@
 > Auto-generated from `mcp-server/src/core/operations.ts`.
 > Run `npm run generate-tools-doc` to regenerate. Do not edit by hand.
 
-Total: **40** operations across **5** namespaces.
+Total: **41** operations across **5** namespaces.
 
 ## `vault.*` (23)
 
@@ -267,7 +267,7 @@ Write a persona-authored analysis into 00-Inbox/AI-Output/{persona}/YYYY-MM-DD-{
 - `reviewStatus` (string, optional, default: `"none"`, enum: `none` | `user-confirmed`) — When user-confirmed, appends #user-confirmed tag to the body so Obsidian tag search picks it up. Default: none (no tag appended).
 - `dryRun` (boolean, optional, default: `true`) — Simulate without writing (default: true)
 
-## `query.*` (4)
+## `query.*` (5)
 
 ### `query.adapters`
 
@@ -312,6 +312,19 @@ Weighted multi-adapter search across all active adapters (filesystem, obsidian, 
 - `weights` (object, optional) — Per-adapter score weight multipliers, e.g. {"obsidian":1.2,"filesystem":0.8}
 - `caseSensitive` (boolean, optional, default: `false`) — Case-sensitive matching
 - `context` (number, optional) — Lines of surrounding context per match
+
+### `query.vector`
+
+Weighted multi-adapter semantic search via pre-computed query vector. Fans out to adapters declaring the "embeddings" capability (currently memu via pgvector cosine). Caller supplies the vector -- adapters are model-agnostic, so callers must produce an embedding matching the adapter's stored vector space (memu: 1024-dim). Use for vector-similarity ranking; use query.unified for text-ILIKE fusion across all adapters.
+
+**Mutating:** no
+
+**Parameters:**
+
+- `vector` (array, required) — Pre-computed query embedding as number[] (memu expects 1024-dim)
+- `maxResults` (number, optional, default: `50`) — Maximum results to return (default: 50)
+- `adapters` (array, optional) — Limit to specific embedding-capable adapters by name
+- `weights` (object, optional) — Per-adapter score weight multipliers
 
 ## `compile.*` (4)
 

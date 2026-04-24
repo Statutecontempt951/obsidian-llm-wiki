@@ -88,6 +88,29 @@ test('tools/list returns the core vault operations', async () => {
   }
 });
 
+test('tools/list includes query.vector (pgvector semantic search)', async () => {
+  const res = await client.listTools();
+  const names = new Set(res.tools.map((t) => t.name));
+  assert.ok(names.has('query.vector'), 'query.vector tool must be registered');
+});
+
+test('tools/call query.vector rejects empty vector with -32602', async () => {
+  const res = await client.callTool({
+    name: 'query.vector',
+    arguments: { vector: [] },
+  });
+  // Server should reject; SDK surfaces JSON-RPC errors via isError=true.
+  assert.ok(res.isError, 'empty vector must produce an error response');
+});
+
+test('tools/call query.vector rejects non-numeric vector', async () => {
+  const res = await client.callTool({
+    name: 'query.vector',
+    arguments: { vector: [1, 2, 'three' as unknown as number] },
+  });
+  assert.ok(res.isError, 'non-numeric vector must produce an error response');
+});
+
 test('tools/call vault.list round-trips the seeded note', async () => {
   const res = await client.callTool({
     name: 'vault.list',
