@@ -7,13 +7,16 @@
  * `from memu.app.retrieve import retrieve` assumption was never a public API.
  *
  * This adapter instead connects to the same Postgres the memU pipeline writes
- * into and serves `summary` text matches. Semantic search via the existing
- * pgvector embedding column is left for a follow-up (requires knowing which
- * embedding model produced the stored 1024-dim vectors).
+ * into and serves two search paths:
+ *   - text ILIKE on `summary` via `search()` -- always available
+ *   - pgvector cosine similarity on `embedding` via `searchByVector()` --
+ *     caller supplies the query vector; the adapter is model-agnostic
+ *     (stored vectors are 1024-dim; matching them is the caller's problem)
  *
  * Requires: Postgres reachable via MEMU_DSN (default localhost:5432/memu),
- * `memory_items` table populated.
- * Gracefully returns [] if the DB is unavailable.
+ * `memory_items` table populated. pgvector extension is required only for
+ * `searchByVector`; text search works without it.
+ * Gracefully returns [] if the DB is unavailable or the query fails.
  */
 
 import pg from "pg";
@@ -41,7 +44,7 @@ const DEFAULT_DSN = "postgresql://postgres:postgres@localhost:5432/memu";
 
 export class MemUAdapter implements VaultMindAdapter {
   readonly name = "memu";
-  readonly capabilities: readonly AdapterCapability[] = ["search"];
+  readonly capabilities: readonly AdapterCapability[] = ["search", "embeddings"];
 
   private readonly dsn: string;
   private readonly userId: string;
@@ -146,6 +149,61 @@ export class MemUAdapter implements VaultMindAdapter {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(
         `obsidian-llm-wiki: [error] memU PG query failed: ${msg}\n`,
+      );
+      return [];
+    }
+  }
+
+  async searchByVector(
+    vector: readonly number[],
+    opts?: SearchOpts,
+  ): Promise<SearchResult[]> {
+    if (!this.available || !this.pool) return [];
+    if (vector.length === 0) return [];
+    const limit = Math.max(1, Math.min(opts?.maxResults ?? this.defaultMax, 100));
+    // pgvector accepts vector literals as strings of the form '[1,2,3,...]'.
+    // We cast on the server with ::vector to keep the driver side dim-agnostic.
+    const vecLiteral = `[${vector.join(",")}]`;
+
+    try {
+      const { rows } = await this.pool.query<{
+        id: string;
+        summary: string;
+        memory_type: string;
+        user_id: string;
+        created_at: Date;
+        similarity: number;
+      }>(
+        `SELECT id, summary, memory_type, user_id, created_at,
+                (1 - (embedding <=> $2::vector))::float8 AS similarity
+         FROM memory_items
+         WHERE user_id = $1 AND embedding IS NOT NULL
+         ORDER BY embedding <=> $2::vector
+         LIMIT $3`,
+        [this.userId, vecLiteral, limit],
+      );
+
+      return rows.map((r) => ({
+        source: this.name,
+        path: `memu/${r.user_id}/${r.memory_type}/${r.id}`,
+        content: String(r.summary ?? "").slice(0, 500),
+        // Cosine similarity. For unit vectors this is in [-1, 1]; for
+        // unnormalised vectors it can exceed that range. Callers should
+        // rely on ordering (higher = closer), not absolute magnitude.
+        score: typeof r.similarity === "number" ? r.similarity : 0,
+        metadata: {
+          memory_type: r.memory_type,
+          user_id: r.user_id,
+          created_at:
+            r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          item_id: r.id,
+          cosine_similarity: r.similarity,
+        },
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `obsidian-llm-wiki: [error] memU PG vector query failed: ${msg}\n`,
       );
       return [];
     }

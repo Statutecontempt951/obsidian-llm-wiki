@@ -78,6 +78,17 @@ export interface VaultMindAdapter {
   // --- Core (implement what you can) ---
 
   search?(query: string, opts?: SearchOpts): Promise<SearchResult[]>;
+  /**
+   * Semantic search by pre-computed embedding vector. Adapters that store
+   * vectors (e.g. pgvector, Qdrant) implement this; callers are responsible
+   * for producing the embedding with a model that matches the adapter's
+   * stored vector space. Returns results sorted by similarity (closest first).
+   * Adapters that don't support vector search leave this undefined.
+   */
+  searchByVector?(
+    vector: readonly number[],
+    opts?: SearchOpts,
+  ): Promise<SearchResult[]>;
   read?(path: string): Promise<string>;
   write?(path: string, content: string, dryRun?: boolean): Promise<void>;
 
